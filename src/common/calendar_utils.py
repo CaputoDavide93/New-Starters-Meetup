@@ -15,6 +15,9 @@ from googleapiclient.discovery import build
 
 LOG = logging.getLogger(__name__)
 
+# Populated after each find_next_free_slot call with calendar IDs that had errors
+last_errored_calendars: list[str] = []
+
 # Google Calendar scopes
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
@@ -65,26 +68,33 @@ def find_next_free_slot(
 ) -> datetime.datetime | None:
     """
     Find next free slot across multiple calendars using FreeBusy API.
-    
+
     Uses a single API call to check all calendars at once, avoiding rate limits.
-    
+    If any attendee calendar (not the first/team calendar) returns a notFound
+    error, the errored calendar IDs are stored in the module-level
+    ``last_errored_calendars`` list so callers can react (e.g. skip that partner).
+
     Args:
         service: Google Calendar service
-        calendar_ids: List of calendar IDs to check
+        calendar_ids: List of calendar IDs to check (first is the team calendar)
         start_date: Date to search from
         window_start: Start of business hours (HH:MM)
         window_end: End of business hours (HH:MM)
         duration: Meeting duration in minutes
         excluded_slots: List of already-booked slot start times to skip
-        
+
     Returns:
         First available datetime slot, or None
     """
+    # Reset per-call error tracking
+    global last_errored_calendars
+    last_errored_calendars = []
+
     try:
         # Build time window
         start_hour, start_min = map(int, window_start.split(":"))
         end_hour, end_min = map(int, window_end.split(":"))
-        
+
         # Create timezone-aware datetimes
         dublin_tz = pytz.timezone('Europe/Dublin')
         search_dt = dublin_tz.localize(datetime.datetime.combine(
@@ -95,10 +105,10 @@ def find_next_free_slot(
             start_date,
             datetime.time(end_hour, end_min),
         ))
-        
+
         LOG.debug(f"Searching for {duration}-min slots on {start_date} between {window_start}-{window_end}")
         LOG.debug(f"Checking {len(calendar_ids)} calendars via FreeBusy API")
-        
+
         # Use FreeBusy API - single call for all calendars
         freebusy_query = {
             "timeMin": search_dt.isoformat(),
@@ -106,15 +116,16 @@ def find_next_free_slot(
             "timeZone": "Europe/Dublin",
             "items": [{"id": cal_id} for cal_id in calendar_ids],
         }
-        
+
         freebusy_result = service.freebusy().query(body=freebusy_query).execute()
-        
+
         # Collect all busy periods across all calendars
         all_busy_periods = []
         for cal_id in calendar_ids:
             cal_info = freebusy_result.get("calendars", {}).get(cal_id, {})
             if cal_info.get("errors"):
                 LOG.warning(f"FreeBusy error for {cal_id}: {cal_info['errors']}")
+                last_errored_calendars.append(cal_id)
                 continue
             for busy in cal_info.get("busy", []):
                 busy_start = datetime.datetime.fromisoformat(busy["start"].replace("Z", "+00:00"))

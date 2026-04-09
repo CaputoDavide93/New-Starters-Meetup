@@ -182,51 +182,47 @@ graph LR
 ```
 new-starters-meetup/
 ├── src/
-│   ├── main.py           # Entry point
-│   ├── slack_client.py   # Slack API wrapper
-│   ├── matcher.py        # Matching algorithm
-│   └── scheduler.py      # Meetup scheduling
+│   ├── common/              # Shared utilities (Lambda Layer)
+│   │   ├── config.py        # Secrets Manager loader
+│   │   ├── azure_sync.py    # Azure AD group sync
+│   │   ├── calendar_utils.py # Google Calendar ops
+│   │   └── dynamo_utils.py  # DynamoDB weight mgmt
+│   ├── ui_lambda/
+│   │   └── ui_entry.py      # Slack UI handler
+│   └── worker_lambda/
+│       └── worker_entry.py  # Background worker
 ├── Layer/
-│   └── python/           # Lambda dependencies
+│   └── python/              # Lambda dependencies
 ├── deploy/
-│   └── deploy.sh         # Deployment script
+│   └── deploy.sh            # Deployment script
 ├── scripts/
-│   └── local_test.py     # Local testing
-└── .env.example          # Environment template
+│   └── build.sh             # Build script
+└── .env.example             # Environment template
+```
+
+### CloudWatch Logs
+
+```bash
+# UI Lambda logs
+aws logs tail /aws/lambda/IntroUI-Lambda --follow
+
+# Worker Lambda logs
+aws logs tail /aws/lambda/IntroWorker-Lambda --follow
 ```
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Common Issues
-
-<details>
-<summary>❌ Slack API Error: not_authed</summary>
-
-```bash
-# Verify your bot token
-curl -X POST https://slack.com/api/auth.test \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN"
-```
-</details>
-
-<details>
-<summary>❌ Lambda Timeout</summary>
-
-Increase Lambda timeout in AWS Console:
-- Recommended: 30 seconds
-- Max for batch processing: 5 minutes
-</details>
-
-<details>
-<summary>❌ No New Starters Found</summary>
-
-Check the new hire detection channel and verify:
-- Channel ID is correct
-- Bot has access to the channel
-- New hire messages match expected format
-</details>
+| Issue | Solution |
+|-------|----------|
+| Slack API `not_authed` | Verify your bot token with `curl -X POST https://slack.com/api/auth.test -H "Authorization: Bearer $SLACK_BOT_TOKEN"` |
+| "No partner available" | Check Azure AD group sync and DynamoDB table |
+| "Calendar slot not found" | Verify Google Calendar permissions |
+| FreeBusy `notFound` errors | The user's Google Calendar is not accessible. Ensure the service account has domain-wide delegation and the user has a Google Workspace account. Users with only Microsoft 365 accounts will have their calendar errors logged as warnings |
+| "Timeout" | Increase Lambda memory/timeout, reduce meeting count |
+| "Signature mismatch" | Verify Slack signing secret |
+| "Permission denied" | Check IAM roles and policies |
 
 ---
 

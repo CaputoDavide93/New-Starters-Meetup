@@ -43,6 +43,7 @@ from intro_common.calendar_utils import (
     get_calendar_service,
     find_next_free_slot,
     create_event,
+    last_errored_calendars,
 )
 
 LOG = logging.getLogger(__name__)
@@ -205,7 +206,7 @@ def book_all_intros(
         LOG.debug(f"  Starting loop: for meet_i in range({n_meet})")
         for meet_i in range(n_meet):
             LOG.debug(f"  Meeting {meet_i + 1}/{n_meet} for {new_email}")
-            
+
             # Calculate search start: either from last booked + CADENCE business days, or start_date
             if last_booked_date:
                 # Must be at least CADENCE_BUSINESS_DAYS after the last booked meeting
@@ -213,21 +214,22 @@ def book_all_intros(
             else:
                 # First meeting: start from start_date
                 min_search_date = start_date
-            
+
             LOG.debug(f"  Search starts from: {min_search_date}")
             slot = None
             partner = None
+            tried_partners: set[str] = set()  # Track partners tried for this meeting
 
             # Try multiple partners if first is busy
             for attempt in range(MAX_PARTNER_ATTEMPTS):
                 LOG.debug(f"    Partner attempt {attempt + 1}/{MAX_PARTNER_ATTEMPTS}")
                 candidate_partner = pick_one_intro_partner(
                     table_name,
-                    exclude_set={*emails, *used_partners, *global_used_partners}
+                    exclude_set={*emails, *used_partners, *global_used_partners, *tried_partners}
                 )
                 LOG.debug(f"    Selected candidate: {candidate_partner}")
                 if not candidate_partner:
-                    LOG.warning(f"No partner available for {new_email}")
+                    LOG.warning(f"No partner available for {new_email} (exhausted {len(tried_partners)} candidates)")
                     _safe_slack_post(
                         channel=channel,
                         text=f":warning: No partner available for {new_email}"
@@ -255,6 +257,13 @@ def book_all_intros(
                         excluded_slots=booked_slots,
                     )
                     LOG.debug(f"        Slot result: {slot}")
+
+                    # If partner's calendar returned notFound, skip this partner entirely
+                    if candidate_partner in last_errored_calendars:
+                        LOG.warning(f"    Calendar not found for {candidate_partner}, skipping partner")
+                        slot = None
+                        break
+
                     if slot:
                         LOG.info(f"    Found slot: {slot}")
                         partner = candidate_partner
@@ -262,6 +271,11 @@ def book_all_intros(
 
                 if slot and partner:
                     break
+
+                # No slot found with this partner — exclude them from further attempts
+                if candidate_partner:
+                    tried_partners.add(candidate_partner)
+                    LOG.debug(f"    No slot with {candidate_partner}, added to tried set ({len(tried_partners)} tried)")
 
             if not slot or not partner:
                 failures.append(f"No slot for {new_email}")
