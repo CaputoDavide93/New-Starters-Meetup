@@ -1,17 +1,17 @@
-# 🤝 Contributing to NewStarters MeetUp
+# 🤝 Contributing to New Starters MeetUp
 
-First off, thank you for considering contributing to NewStarters MeetUp! 🎉
+First off, thank you for considering contributing to New Starters MeetUp! 🎉
 
 ## 📋 Table of Contents
 
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-- [Development Setup](#development-setup)
-- [How to Contribute](#how-to-contribute)
-- [Pull Request Process](#pull-request-process)
-- [Coding Standards](#coding-standards)
-- [Testing](#testing)
-- [Documentation](#documentation)
+- [Code of Conduct](#-code-of-conduct)
+- [Getting Started](#-getting-started)
+- [Development Setup](#-development-setup)
+- [How to Contribute](#-how-to-contribute)
+- [Pull Request Process](#-pull-request-process)
+- [Coding Standards](#-coding-standards)
+- [Testing](#-testing)
+- [Documentation](#-documentation)
 
 ## 📜 Code of Conduct
 
@@ -27,7 +27,6 @@ This project follows a simple code of conduct:
 ### Prerequisites
 
 - Python 3.13+
-- Docker (for building Lambda layers)
 - AWS CLI configured
 - Git
 
@@ -35,9 +34,9 @@ This project follows a simple code of conduct:
 
 ```bash
 # Fork the repository on GitHub, then:
-git clone https://github.com/YOUR_USERNAME/NewStarters_MeetUp.git
-cd NewStarters_MeetUp
-git remote add upstream https://github.com/MITT/NewStarters_MeetUp.git
+git clone https://github.com/YOUR_USERNAME/New-Starters-Meetup.git
+cd New-Starters-Meetup
+git remote add upstream https://github.com/CaputoDavide93/New-Starters-Meetup.git
 ```
 
 ## 💻 Development Setup
@@ -52,18 +51,10 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 ### 2. Install Dependencies
 
 ```bash
-pip install -r layer/requirements.txt
-pip install -r requirements-dev.txt  # If available
+pip install -r Layer/requirements.txt
 ```
 
-### 3. Set Up Pre-commit Hooks (Recommended)
-
-```bash
-pip install pre-commit
-pre-commit install
-```
-
-### 4. Configure Local Testing
+### 3. Configure Local Testing
 
 Create a `secrets.local.json` for local testing (never commit this!):
 
@@ -113,7 +104,8 @@ Create a `secrets.local.json` for local testing (never commit this!):
 ### Before Submitting
 
 - [ ] Code follows the style guidelines
-- [ ] Tests pass locally
+- [ ] `ruff check src scripts` passes
+- [ ] Changes were exercised against a test deployment (see [Testing](#-testing))
 - [ ] Documentation is updated
 - [ ] No secrets or sensitive data included
 - [ ] Commit messages are clear and descriptive
@@ -136,7 +128,6 @@ Describe how you tested the changes
 ## Checklist
 - [ ] My code follows the project's style guidelines
 - [ ] I have performed a self-review
-- [ ] I have added tests (if applicable)
 - [ ] I have updated documentation (if applicable)
 ```
 
@@ -151,6 +142,7 @@ Describe how you tested the changes
 ### Python Style
 
 - Follow [PEP 8](https://peps.python.org/pep-0008/)
+- Lint with [ruff](https://docs.astral.sh/ruff/) — CI runs `ruff check src scripts`
 - Use type hints (Python 3.13+ style)
 - Maximum line length: 100 characters
 - Use f-strings for formatting
@@ -205,35 +197,14 @@ from intro_common.config import slack_cfg
 
 ## 🧪 Testing
 
-### Running Tests
+There is no automated test suite (yet — contributions welcome!). Changes are verified manually:
 
-```bash
-# Run all tests
-pytest
+1. Run `ruff check src scripts` locally
+2. Build the packages with `./scripts/build.sh` and deploy to a **test** AWS environment
+3. Exercise `/newintro` end-to-end from a test Slack workspace
+4. Check the CloudWatch logs of both Lambdas for errors
 
-# Run with coverage
-pytest --cov=src --cov-report=html
-
-# Run specific test file
-pytest tests/test_calendar_utils.py
-```
-
-### Writing Tests
-
-```python
-import pytest
-from intro_common.dynamo_utils import get_display_name
-
-def test_get_display_name_from_email():
-    """Test email-derived name formatting."""
-    result = get_display_name("john.doe@example.com", "test-table")
-    assert result == "John Doe"
-
-def test_get_display_name_with_underscores():
-    """Test underscore handling in email names."""
-    result = get_display_name("john_doe@example.com", "test-table")
-    assert result == "John Doe"
-```
+Describe what you verified in the PR's Testing section.
 
 ## 📚 Documentation
 
@@ -249,28 +220,11 @@ def test_get_display_name_with_underscores():
 - Add examples for new functionality
 - Keep the architecture diagram current
 
-### Changelog
-
-When contributing, add an entry to CHANGELOG.md:
-
-```markdown
-## [Unreleased]
-
-### Added
-- New feature description (#PR_NUMBER)
-
-### Fixed
-- Bug fix description (#PR_NUMBER)
-
-### Changed
-- Change description (#PR_NUMBER)
-```
-
 ## 🏗️ Project Structure
 
 ```
 src/
-├── common/           # Shared utilities (synced to layer)
+├── common/           # Shared utilities (synced into the layer by scripts/build.sh)
 │   ├── config.py     # Configuration loading
 │   ├── azure_sync.py # Azure AD integration
 │   ├── calendar_utils.py # Google Calendar
@@ -292,7 +246,7 @@ src/
 
 ## ❓ Questions?
 
-- Open a [GitHub Discussion](https://github.com/MITT/NewStarters_MeetUp/discussions)
+- Open a [GitHub issue](https://github.com/CaputoDavide93/New-Starters-Meetup/issues)
 - Email the maintainer: CaputoDav93@Gmail.com
 
 ---
