@@ -35,7 +35,6 @@ from intro_common.config import (
 )
 from intro_common.azure_sync import sync_azure_group
 from intro_common.dynamo_utils import (
-    ensure_user_in_db,
     pick_one_intro_partner,
     increment_user_weight,
     get_display_name,
@@ -194,7 +193,7 @@ def book_all_intros(
 
         if elapsed > 870:
             LOG.error(f"Stopping early to avoid timeout ({elapsed:.0f}s)")
-            failures.append(f"Timeout: remaining emails not processed")
+            failures.append("Timeout: remaining emails not processed")
             break
 
         LOG.info(f"Booking for: {new_email}")
@@ -202,7 +201,7 @@ def book_all_intros(
         used_partners: set[str] = set()
         booked_slots: list[datetime.datetime] = []  # Track slots booked in this session
         last_booked_date: datetime.date | None = None  # Track last meeting date for cadence
-        LOG.debug(f"  Initialized used_partners set and booked_slots list")
+        LOG.debug("  Initialized used_partners set and booked_slots list")
 
         LOG.debug(f"  Starting loop: for meet_i in range({n_meet})")
         for meet_i in range(n_meet):
@@ -245,10 +244,10 @@ def book_all_intros(
 
                     # Skip past dates and weekends
                     if candidate_day < datetime.date.today() or candidate_day.weekday() >= 5:
-                        LOG.debug(f"        Skipped (past date or weekend)")
+                        LOG.debug("        Skipped (past date or weekend)")
                         continue
 
-                    LOG.debug(f"        Querying calendar...")
+                    LOG.debug("        Querying calendar...")
                     slot = find_next_free_slot(
                         service=svc,
                         calendar_ids=[google_calendar_id, new_email, candidate_partner],

@@ -107,16 +107,16 @@ def pick_one_intro_partner(
     """
     try:
         LOG.info(f"pick_one_intro_partner: Starting with exclude_set size={len(exclude_set)}")
-        LOG.debug(f"  Creating dynamodb resource...")
+        LOG.debug("  Creating dynamodb resource...")
         dynamodb = boto3.resource("dynamodb")
         LOG.debug(f"  Getting table: {table_name}")
         table = dynamodb.Table(table_name)
-        LOG.debug(f"  Table acquired")
+        LOG.debug("  Table acquired")
         
         # Get all members (stored with email="members")
         LOG.debug(f"Fetching members list from {table_name}...")
         response = table.get_item(Key={"email": "members"})
-        LOG.debug(f"Members list fetch complete")
+        LOG.debug("Members list fetch complete")
         
         if "Item" not in response or not response["Item"].get("member_list"):
             LOG.warning("No members found in DB")
@@ -190,7 +190,7 @@ def pick_one_intro_partner(
         LOG.debug(f"Weight calculation complete. Selecting from {len(weights)} candidates...")
         
         if not weights:
-            LOG.info(f"No weights calculated, returning random choice")
+            LOG.info("No weights calculated, returning random choice")
             return random.choice(candidates)
         
         # Find minimum weight (intro_count) - these are users with fewest intros

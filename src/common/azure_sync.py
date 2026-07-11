@@ -5,7 +5,6 @@ Syncs Azure AD group members to DynamoDB table for intro matching.
 """
 
 import logging
-import json
 import requests
 from azure.identity import ClientSecretCredential
 import boto3
