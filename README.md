@@ -1,6 +1,6 @@
 <div align="center">
 
-# 👋 New Starters MeetUp
+# 🤝 New Starters MeetUp
 
 **A Slack `/newintro` command that books coffee-chat and buddy intro meetings for new starters — serverless, on two AWS Lambdas.**
 
@@ -268,6 +268,6 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ⭐ **If this tool helped you, please give it a star!** ⭐
 
-<sub>Made with ❤️ by Davide Caputo</sub>
+<p align="center"><sub>Made with ❤️ by <a href="https://github.com/CaputoDavide93">Davide Caputo</a></sub></p>
 
 </div>
