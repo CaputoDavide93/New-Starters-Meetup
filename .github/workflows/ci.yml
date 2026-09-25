@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install dependencies
-        run: pip install -r requirements.txt boto3 pytest ruff
+        run: pip install -r requirements.txt && pip install boto3 pytest ruff
       - name: Lint
         run: ruff check --select E4,E7,E9,F src scripts tests
       - name: Test

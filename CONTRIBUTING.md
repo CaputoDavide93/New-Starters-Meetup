@@ -51,7 +51,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 ### 2. Install Dependencies
 
 ```bash
-pip install -r requirements.txt boto3 pytest ruff
+pip install -r requirements.txt && pip install boto3 pytest ruff
 ```
 
 ### 3. Configure Local Testing

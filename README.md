@@ -219,7 +219,8 @@ New-Starters-Meetup/
 
 ```bash
 python3.13 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt boto3 pytest
+pip install -r requirements.txt   # hash-pinned layer deps
+pip install boto3 pytest          # test-only extras (boto3 ships with the Lambda runtime)
 python -m pytest tests
 ```
 
