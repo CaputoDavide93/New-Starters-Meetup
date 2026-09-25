@@ -6,6 +6,7 @@ Contains:
 - azure_sync: Azure AD group synchronization
 - calendar_utils: Google Calendar integration
 - dynamo_utils: DynamoDB utilities
+- emails: Participant email validation and log redaction
 
 Note: This package is deployed as 'intro_common' in the Lambda Layer.
 """
@@ -16,4 +17,5 @@ __all__ = [
     "azure_sync",
     "calendar_utils",
     "dynamo_utils",
+    "emails",
 ]

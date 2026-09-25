@@ -12,6 +12,8 @@ import pytz
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
+from .emails import email_ref
+
 LOG = logging.getLogger(__name__)
 
 # Populated after each find_next_free_slot call with calendar IDs that had errors
@@ -52,7 +54,7 @@ def get_calendar_service(sa_key: dict[str, Any], subject: str):
         credentials=delegated_credentials,
         static_discovery=False,
     )
-    LOG.debug(f"Google Calendar service initialized for {subject}")
+    LOG.debug(f"Google Calendar service initialized for {email_ref(subject)}")
     return service
 
 
@@ -123,7 +125,7 @@ def find_next_free_slot(
         for cal_id in calendar_ids:
             cal_info = freebusy_result.get("calendars", {}).get(cal_id, {})
             if cal_info.get("errors"):
-                LOG.warning(f"FreeBusy error for {cal_id}: {cal_info['errors']}")
+                LOG.warning(f"FreeBusy error for {email_ref(cal_id)}: {cal_info['errors']}")
                 last_errored_calendars.append(cal_id)
                 continue
             for busy in cal_info.get("busy", []):

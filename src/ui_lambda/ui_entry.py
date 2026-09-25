@@ -14,7 +14,8 @@ import boto3
 from slack_bolt import App
 from slack_bolt.adapter.aws_lambda import SlackRequestHandler
 
-from intro_common.config import slack_cfg
+from intro_common.config import slack_cfg, allowed_email_domains
+from intro_common.emails import parse_email_list
 
 # ──── CONFIG ─────────────────────────────────────────────────────────────
 WORKER_FN = os.environ["WORKER_FUNCTION_NAME"]
@@ -108,12 +109,25 @@ def cmd_newintro(ack, body, client, logger):
 @app.view("intro_submit")
 def handle_submit(ack, body, client, logger):
     """Handle modal submission and invoke worker Lambda."""
+    vals = body["view"]["state"]["values"]
+    raw_emails = vals["emails"]["emails_input"]["value"]
+
+    # Invites go out from the company calendar: only allow company addresses
+    valid_emails, rejected = parse_email_list(raw_emails, allowed_email_domains)
+    if rejected or not valid_emails:
+        domains = " or ".join(f"@{d}" for d in sorted(allowed_email_domains))
+        msg = f"Only {domains} addresses are allowed."
+        if rejected:
+            msg += f" Not allowed: {', '.join(rejected[:5])}"
+        ack(response_action="errors", errors={"emails": msg[:150]})
+        logger.warning(f"Rejected intro request: {len(rejected)} disallowed email(s)")
+        return
+
     ack(response_action="clear")
 
     chan = body["view"]["private_metadata"] or TRIGGER_CH
-    vals = body["view"]["state"]["values"]
     mode = vals["mode"]["mode_select"]["selected_option"]["value"]
-    emails = vals["emails"]["emails_input"]["value"]
+    emails = ",".join(valid_emails)
     start = vals["start"]["date_picker"]["selected_date"]
     count = vals["count"]["meeting_count"]["value"]
 
@@ -123,7 +137,7 @@ def handle_submit(ack, body, client, logger):
         channel=chan,
         text=f"{icon} Booking {mode.capitalize()}…"
     )
-    logger.info(f"Submitted intro request: mode={mode}, emails={len(emails.split(','))} count={count}")
+    logger.info(f"Submitted intro request: mode={mode}, emails={len(valid_emails)} count={count}")
 
     # Invoke worker Lambda asynchronously
     payload = {

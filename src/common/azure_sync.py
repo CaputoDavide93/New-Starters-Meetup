@@ -6,10 +6,31 @@ Syncs Azure AD group members to DynamoDB table for intro matching.
 
 import logging
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from azure.identity import ClientSecretCredential
 import boto3
 
+from .emails import email_ref
+
 LOG = logging.getLogger(__name__)
+
+# Graph API: fail fast on a hung call (worker timeout is 900 s) and retry
+# throttling/5xx, honouring Retry-After
+GRAPH_TIMEOUT = 30
+
+
+def _graph_session() -> requests.Session:
+    session = requests.Session()
+    retry = Retry(
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"],
+        respect_retry_after_header=True,
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+    return session
 
 def sync_azure_group(
     tenant_id: str,
@@ -52,9 +73,10 @@ def sync_azure_group(
         # Include displayName for user records
         url = f"https://graph.microsoft.com/v1.0/groups/{group_id}/members?$select=mail,userPrincipalName,displayName&$top=999"
         members_data = []  # Store email and display name pairs
+        session = _graph_session()
         
         while url:
-            response = requests.get(url, headers=headers)
+            response = session.get(url, headers=headers, timeout=GRAPH_TIMEOUT)
             response.raise_for_status()
             
             data = response.json()
@@ -98,7 +120,7 @@ def sync_azure_group(
                     ExpressionAttributeValues={":dn": member["display_name"]},
                 )
             except Exception as e:
-                LOG.warning(f"Failed to update display_name for {member['email']}: {e}")
+                LOG.warning(f"Failed to update display_name for {email_ref(member['email'])}: {e}")
         
         LOG.info(f"Updated DynamoDB table {dynamodb_table_name} with {len(emails)} members")
         
@@ -117,7 +139,7 @@ def sync_azure_group(
             if user_email and user_email not in current_members_set:
                 # User no longer in Azure AD - delete their record
                 table.delete_item(Key={"email": item["email"]})
-                LOG.info(f"Removed departed user from DB: {item['email']}")
+                LOG.info(f"Removed departed user from DB: {email_ref(item['email'])}")
                 departed_count += 1
         
         # Handle pagination if table is large
@@ -131,7 +153,7 @@ def sync_azure_group(
                 user_email = item.get("email", "").lower()
                 if user_email and user_email not in current_members_set:
                     table.delete_item(Key={"email": item["email"]})
-                    LOG.info(f"Removed departed user from DB: {item['email']}")
+                    LOG.info(f"Removed departed user from DB: {email_ref(item['email'])}")
                     departed_count += 1
         
         if departed_count > 0:

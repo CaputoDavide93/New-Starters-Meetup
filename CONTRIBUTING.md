@@ -51,7 +51,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 ### 2. Install Dependencies
 
 ```bash
-pip install -r Layer/requirements.txt
+pip install -r requirements.txt boto3 pytest ruff
 ```
 
 ### 3. Configure Local Testing
@@ -104,7 +104,8 @@ Create a `secrets.local.json` for local testing (never commit this!):
 ### Before Submitting
 
 - [ ] Code follows the style guidelines
-- [ ] `ruff check src scripts` passes
+- [ ] `ruff check --select E4,E7,E9,F src scripts tests` passes
+- [ ] `python -m pytest tests` passes
 - [ ] Changes were exercised against a test deployment (see [Testing](#-testing))
 - [ ] Documentation is updated
 - [ ] No secrets or sensitive data included
@@ -142,7 +143,7 @@ Describe how you tested the changes
 ### Python Style
 
 - Follow [PEP 8](https://peps.python.org/pep-0008/)
-- Lint with [ruff](https://docs.astral.sh/ruff/) — CI runs `ruff check src scripts`
+- Lint with [ruff](https://docs.astral.sh/ruff/) — CI runs `ruff check --select E4,E7,E9,F src scripts tests`
 - Use type hints (Python 3.13+ style)
 - Maximum line length: 100 characters
 - Use f-strings for formatting
@@ -197,9 +198,15 @@ from intro_common.config import slack_cfg
 
 ## 🧪 Testing
 
-There is no automated test suite (yet — contributions welcome!). Changes are verified manually:
+A pytest suite lives in `tests/` and runs fully offline (Secrets Manager, Slack, Google and Graph are stubbed; fixtures use `example.com` addresses):
 
-1. Run `ruff check src scripts` locally
+```bash
+python -m pytest tests
+```
+
+Before opening a PR:
+
+1. Run the tests and `ruff check --select E4,E7,E9,F src scripts tests` locally
 2. Build the packages with `./scripts/build.sh` and deploy to a **test** AWS environment
 3. Exercise `/newintro` end-to-end from a test Slack workspace
 4. Check the CloudWatch logs of both Lambdas for errors
@@ -228,7 +235,8 @@ src/
 │   ├── config.py     # Configuration loading
 │   ├── azure_sync.py # Azure AD integration
 │   ├── calendar_utils.py # Google Calendar
-│   └── dynamo_utils.py   # DynamoDB operations
+│   ├── dynamo_utils.py   # DynamoDB operations
+│   └── emails.py         # Email allowlist + hashed log refs
 ├── ui_lambda/        # Slack UI handler
 │   └── ui_entry.py
 └── worker_lambda/    # Background worker
@@ -247,7 +255,7 @@ src/
 ## ❓ Questions?
 
 - Open a [GitHub issue](https://github.com/CaputoDavide93/New-Starters-Meetup/issues)
-- Email the maintainer: CaputoDav93@Gmail.com
+- For anything security-related, see [SECURITY.md](SECURITY.md)
 
 ---
 

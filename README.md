@@ -26,6 +26,10 @@
 | 📅 | Calendar-aware booking | Google Calendar FreeBusy search finds a free 15-minute slot (11:00–15:00, weekdays) |
 | 🔁 | Business-day cadence | Spaces each person's meetings two business days apart, skipping weekends |
 | 💬 | Live status updates | Posts booking progress, per-meeting confirmations, and a final summary to the channel |
+| 🛡️ | Email-domain allowlist | Only addresses on your configured domains can be booked — checked in the modal *and* again in the worker |
+| 🙈 | No emails in logs | CloudWatch lines carry short hashed user refs (`user:1a2b3c4d`) instead of addresses |
+| 🔄 | Resilient Graph sync | Microsoft Graph calls time out after 30 s and retry throttling/5xx with backoff, honouring `Retry-After` |
+| 🚫 | Missing-calendar skip | Partners whose Google Calendar can't be read are skipped instead of failing the booking |
 | ⚡ | Serverless | Two AWS Lambdas (ARM64/Graviton) + a shared dependency layer — nothing to host |
 
 ---
@@ -76,13 +80,15 @@ git clone https://github.com/CaputoDavide93/New-Starters-Meetup.git
 cd New-Starters-Meetup
 ```
 
-### 2. Install the layer dependencies
-
-The dependency layer is **not** committed — build it locally:
+### 2. Run the tests
 
 ```bash
-pip install -r Layer/requirements.txt --target Layer/python/
+python3.13 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt boto3 pytest
+python -m pytest tests
 ```
+
+Dependencies are declared in `requirements.in` and locked (with hashes) in `requirements.txt`. To change a dependency, edit `requirements.in` and re-lock with the `uv pip compile` command at the top of that file.
 
 ### 3. Build the deployment packages
 
@@ -90,11 +96,12 @@ pip install -r Layer/requirements.txt --target Layer/python/
 ./scripts/build.sh
 ```
 
-`scripts/build.sh` does three things:
+The dependency layer is **not** committed — `scripts/build.sh` builds it every time:
 
-1. Copies `src/common/*.py` into `Layer/python/intro_common/` (the shared code ships inside the layer as the `intro_common` package)
-2. Copies the two entry files into `deploy/ui-lambda/` and `deploy/worker-lambda/` staging folders
-3. Zips everything into `dist/`: `ui-lambda.zip`, `worker-lambda.zip`, and `layer-python313-arm64.zip`
+1. Installs `requirements.txt` (`--require-hashes`, wheels for python3.13 / arm64) into `build/layer/python/`
+2. Copies `src/common/*.py` into the layer as the `intro_common` package
+3. Copies the two entry files into the `deploy/ui-lambda/` and `deploy/worker-lambda/` staging folders
+4. Zips everything into `dist/`: `ui-lambda.zip`, `worker-lambda.zip`, and `layer-python313-arm64.zip`
 
 ### 4. Deploy with the AWS CLI
 
@@ -125,7 +132,7 @@ Handlers: `ui_entry.lambda_handler` (UI) and `worker_entry.lambda_handler` (work
 |----------|--------|:--------:|-------------|
 | `CONFIG_SECRET` | both | ✅ | ARN of the AWS Secrets Manager secret holding the JSON config |
 | `WORKER_FUNCTION_NAME` | UI | ✅ | Name of the worker Lambda to invoke asynchronously |
-| `LOG_LEVEL` | worker | ❌ | Python log level (default `INFO`) |
+| `LOG_LEVEL` | worker | ❌ | Python log level (default `INFO`; logs carry hashed user refs, not emails) |
 
 See [.env.example](.env.example) for the full template.
 
@@ -137,7 +144,8 @@ All application config lives in **one JSON secret** (`CONFIG_SECRET`), loaded on
 |-----|:--------:|-------------|
 | `slack_bot_token` | ✅ | Slack bot OAuth token (`xoxb-…`) |
 | `slack_signing_secret` | ✅ | Slack app signing secret |
-| `slack_trigger_channel` | ✅ | Fallback channel ID for status messages |
+| `slack_trigger_channel_id` | ✅ | Fallback channel ID for status messages (the older `slack_trigger_channel` key is still read) |
+| `allowed_email_domains` | ⚠️ | Comma-separated domains that may be booked, e.g. `example.com,example.org`. **Set this** — the built-in default is the original deployment's domains |
 | `azure_tenant_id` | ✅ | Azure AD tenant (coffee intros) |
 | `azure_client_id` | ✅ | Azure AD app client ID |
 | `azure_client_secret` | ✅ | Azure AD app client secret |
@@ -165,7 +173,7 @@ Templates accept `{person1}`/`{person2}` (display names) and `{email1}`/`{email2
 1. In Slack, run **`/newintro`** in any channel the bot can post to.
 2. Fill in the modal:
    - **Which type of intro?** — ☕️ Coffee or 🤝 Buddy
-   - **Participant emails** — comma-separated list of new starters
+   - **Participant emails** — comma-separated list of new starters (only addresses on `allowed_email_domains`; anything else is flagged in the modal and nothing is booked)
    - **Start date** — first day to search for slots
    - **Meetings per person** — how many intros to book for each email
 3. Submit. The UI Lambda acknowledges instantly and hands off to the worker, which posts progress to the channel as it books:
@@ -196,20 +204,22 @@ New-Starters-Meetup/
 │   │   ├── config.py         # 🔐 Secrets Manager loader
 │   │   ├── azure_sync.py     # 🪪 Azure AD group sync
 │   │   ├── calendar_utils.py # 📅 Google Calendar FreeBusy + events
-│   │   └── dynamo_utils.py   # 🗄️ DynamoDB weight management
+│   │   ├── dynamo_utils.py   # 🗄️ DynamoDB weight management
+│   │   └── emails.py         # 🛡️ email allowlist parsing + hashed log refs
 │   ├── ui_lambda/
 │   │   └── ui_entry.py       # 🎛️ Slack slash command + modal handler
 │   └── worker_lambda/
 │       └── worker_entry.py   # ⚙️ booking engine
-├── Layer/
-│   └── requirements.txt      # 📦 layer deps (install into Layer/python/, not committed)
+├── tests/                    # 🧪 pytest suite (allowlist, log redaction, booking flow)
+├── requirements.in           # 📦 top-level layer deps
+├── requirements.txt          # 🔒 hash-pinned lock used by build.sh
 ├── scripts/
 │   ├── build.sh              # 🔧 builds the three deployment ZIPs into dist/
 │   └── cleanup_db.py         # 🧹 DynamoDB duplicate-user cleanup
 └── .env.example              # ⚙️ Lambda environment template
 ```
 
-`deploy/` and `dist/` are build staging/output folders created by `scripts/build.sh` — they are gitignored, never edited by hand.
+`build/`, `deploy/` and `dist/` are build staging/output folders created by `scripts/build.sh` — they are gitignored, never edited by hand.
 
 ### CloudWatch logs
 
@@ -226,6 +236,7 @@ aws logs tail /aws/lambda/intro-worker-lambda --follow
 | Issue | Solution |
 |-------|----------|
 | Slack API `not_authed` | Verify your bot token with `curl -X POST https://slack.com/api/auth.test -H "Authorization: Bearer $SLACK_BOT_TOKEN"` |
+| "Only @… addresses are allowed" in the modal | The list contains an address outside `allowed_email_domains` — fix the address or add the domain to the secret |
 | "No partner available" | Check the Azure AD group sync and the DynamoDB table contents |
 | FreeBusy `notFound` errors | The user's Google Calendar is not accessible. Ensure the service account has domain-wide delegation and the user has a Google Workspace account. Users whose calendars error are skipped as partners and logged as warnings |
 | "Signature mismatch" | Verify `slack_signing_secret` in the config secret |

@@ -10,6 +10,8 @@ from typing import Optional
 
 import boto3
 
+from .emails import email_ref
+
 LOG = logging.getLogger(__name__)
 
 
@@ -44,7 +46,7 @@ def get_display_name(email: str, table_name: str) -> str:
         return email.split('@')[0].replace('.', ' ').replace('_', ' ').title()
         
     except Exception as e:
-        LOG.warning(f"Could not get display name for {email}: {e}")
+        LOG.warning(f"Could not get display name for {email_ref(email)}: {e}")
         # Fallback on error
         return email.split('@')[0].replace('.', ' ').replace('_', ' ').title()
 
@@ -80,9 +82,9 @@ def ensure_user_in_db(
                     "weight": initial_weight,
                 }
             )
-            LOG.debug(f"Created user in DB: {email}")
+            LOG.debug(f"Created user in DB: {email_ref(email)}")
         else:
-            LOG.debug(f"User already exists in DB: {email}")
+            LOG.debug(f"User already exists in DB: {email_ref(email)}")
             
     except Exception as e:
         LOG.error(f"Failed to ensure user in DB: {e}", exc_info=True)
@@ -157,7 +159,7 @@ def pick_one_intro_partner(
                     email = item.get("email", "").lower()
                     weight = float(item.get("weight", 0.0))
                     weights[email] = 1.0 / max(0.1, weight + 1.0)
-                    LOG.debug(f"    {email}: weight={weights[email]:.2f} (intro_count={weight})")
+                    LOG.debug(f"    {email_ref(email)}: weight={weights[email]:.2f} (intro_count={weight})")
                 
                 # Handle unprocessed items (throttling)
                 unprocessed = response.get("UnprocessedKeys", {})
@@ -178,14 +180,14 @@ def pick_one_intro_partner(
                         weight = float(resp.get("Item", {}).get("weight", 0.0))
                         weights[candidate.lower()] = 1.0 / max(0.1, weight + 1.0)
                     except Exception as inner_e:
-                        LOG.warning(f"Could not get weight for {candidate}: {inner_e}")
+                        LOG.warning(f"Could not get weight for {email_ref(candidate)}: {inner_e}")
                         weights[candidate.lower()] = 1.0
         
         # Add default weight for candidates not found in DB (new users)
         for candidate in candidates:
             if candidate.lower() not in weights:
                 weights[candidate.lower()] = 1.0  # Default: 0 intros
-                LOG.debug(f"    {candidate}: default weight=1.0 (new user)")
+                LOG.debug(f"    {email_ref(candidate)}: default weight=1.0 (new user)")
         
         LOG.debug(f"Weight calculation complete. Selecting from {len(weights)} candidates...")
         
@@ -206,7 +208,7 @@ def pick_one_intro_partner(
         
         # Random selection from minimum-weight pool
         selected = random.choice(min_weight_candidates)
-        LOG.info(f"Selected partner: {selected} (intro_count: {min_intro_count:.0f})")
+        LOG.info(f"Selected partner: {email_ref(selected)} (intro_count: {min_intro_count:.0f})")
         return selected
         
     except Exception as e:
@@ -239,7 +241,7 @@ def increment_user_weight(email: str, table_name: str) -> None:
             },
         )
         
-        LOG.debug(f"Incremented weight for {email}")
+        LOG.debug(f"Incremented weight for {email_ref(email)}")
         
     except Exception as e:
         LOG.error(f"Failed to increment weight: {e}", exc_info=True)

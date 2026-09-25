@@ -32,6 +32,7 @@ from intro_common.config import (
     meeting_description_template,
     buddy_meeting_title_template,
     buddy_meeting_description_template,
+    allowed_email_domains,
 )
 from intro_common.azure_sync import sync_azure_group
 from intro_common.dynamo_utils import (
@@ -39,11 +40,12 @@ from intro_common.dynamo_utils import (
     increment_user_weight,
     get_display_name,
 )
+from intro_common import calendar_utils
+from intro_common.emails import parse_email_list, email_ref
 from intro_common.calendar_utils import (
     get_calendar_service,
     find_next_free_slot,
     create_event,
-    last_errored_calendars,
 )
 
 LOG = logging.getLogger(__name__)
@@ -196,7 +198,7 @@ def book_all_intros(
             failures.append("Timeout: remaining emails not processed")
             break
 
-        LOG.info(f"Booking for: {new_email}")
+        LOG.info(f"Booking for: {email_ref(new_email)}")
         LOG.debug(f"  n_meet={n_meet}")
         used_partners: set[str] = set()
         booked_slots: list[datetime.datetime] = []  # Track slots booked in this session
@@ -205,7 +207,7 @@ def book_all_intros(
 
         LOG.debug(f"  Starting loop: for meet_i in range({n_meet})")
         for meet_i in range(n_meet):
-            LOG.debug(f"  Meeting {meet_i + 1}/{n_meet} for {new_email}")
+            LOG.debug(f"  Meeting {meet_i + 1}/{n_meet} for {email_ref(new_email)}")
 
             # Calculate search start: either from last booked + CADENCE business days, or start_date
             if last_booked_date:
@@ -227,16 +229,16 @@ def book_all_intros(
                     table_name,
                     exclude_set={*emails, *used_partners, *global_used_partners, *tried_partners}
                 )
-                LOG.debug(f"    Selected candidate: {candidate_partner}")
+                LOG.debug(f"    Selected candidate: {email_ref(candidate_partner)}")
                 if not candidate_partner:
-                    LOG.warning(f"No partner available for {new_email} (exhausted {len(tried_partners)} candidates)")
+                    LOG.warning(f"No partner available for {email_ref(new_email)} (exhausted {len(tried_partners)} candidates)")
                     _safe_slack_post(
                         channel=channel,
                         text=f":warning: No partner available for {new_email}"
                     )
                     break
 
-                LOG.debug(f"    Searching for slot with {candidate_partner}...")
+                LOG.debug(f"    Searching for slot with {email_ref(candidate_partner)}...")
                 # Search for available slot
                 for day_offset in range(MAX_SEARCH_DAYS):
                     candidate_day = min_search_date + datetime.timedelta(days=day_offset)
@@ -258,9 +260,11 @@ def book_all_intros(
                     )
                     LOG.debug(f"        Slot result: {slot}")
 
-                    # If partner's calendar returned notFound, skip this partner entirely
-                    if candidate_partner in last_errored_calendars:
-                        LOG.warning(f"    Calendar not found for {candidate_partner}, skipping partner")
+                    # If partner's calendar returned notFound, skip this partner entirely.
+                    # Read via the module: find_next_free_slot rebinds the list on each call,
+                    # so a name imported with "from ... import" would always be the stale empty list.
+                    if candidate_partner in calendar_utils.last_errored_calendars:
+                        LOG.warning(f"    Calendar not found for {email_ref(candidate_partner)}, skipping partner")
                         slot = None
                         break
 
@@ -275,7 +279,7 @@ def book_all_intros(
                 # No slot found with this partner — exclude them from further attempts
                 if candidate_partner:
                     tried_partners.add(candidate_partner)
-                    LOG.debug(f"    No slot with {candidate_partner}, added to tried set ({len(tried_partners)} tried)")
+                    LOG.debug(f"    No slot with {email_ref(candidate_partner)}, added to tried set ({len(tried_partners)} tried)")
 
             if not slot or not partner:
                 failures.append(f"No slot for {new_email}")
@@ -336,7 +340,7 @@ def book_all_intros(
                 )
                 successes.append(f"{new_email} ↔ {partner}")
 
-                LOG.info(f"Created event: {new_email} ↔ {partner} at {slot}")
+                LOG.info(f"Created event: {email_ref(new_email)} ↔ {email_ref(partner)} at {slot}")
 
             except Exception as e:
                 LOG.error(f"Failed to create event: {e}")
@@ -360,7 +364,12 @@ def lambda_handler(event, context):
         # Parse event payload
         payload = event if isinstance(event, dict) else json.loads(event.get("body", "{}"))
 
-        emails = [e.strip().lower() for e in payload["emails"].split(",") if e.strip()]
+        # Re-check the allowlist here too: the worker can be invoked directly
+        emails, rejected = parse_email_list(payload["emails"], allowed_email_domains)
+        if rejected or not emails:
+            raise ValueError(
+                f"Refusing booking: {len(rejected)} email(s) outside allowed domains"
+            )
         start_date = datetime.date.fromisoformat(payload["start"])
         n_meet = int(payload["count"])
         mode = payload["mode"]

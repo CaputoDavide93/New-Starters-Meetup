@@ -13,7 +13,7 @@ We take security seriously. If you discover a security vulnerability, please rep
 ### How to Report
 
 1. **DO NOT** open a public GitHub issue for security vulnerabilities
-2. Email the maintainer directly at: **CaputoDav93@Gmail.com**
+2. Report it privately via GitHub: **[Report a vulnerability](https://github.com/CaputoDavide93/New-Starters-Meetup/security/advisories/new)** (Security tab → Advisories)
 3. Include as much detail as possible:
    - Description of the vulnerability
    - Steps to reproduce
@@ -29,7 +29,7 @@ We take security seriously. If you discover a security vulnerability, please rep
 ### Scope
 
 This policy applies to:
-- The core application code (`src/`, `deploy/`)
+- The core application code (`src/`, `scripts/`)
 - Configuration handling
 - API integrations (Slack, Azure AD, Google Calendar)
 - AWS infrastructure patterns
@@ -149,6 +149,7 @@ Before deploying to production:
 - [ ] Slack request signature verification is enabled
 - [ ] API Gateway has appropriate throttling configured
 - [ ] CloudWatch Logs do not contain sensitive data
+- [ ] `allowed_email_domains` set in the config secret to your own domains
 - [ ] DynamoDB tables have encryption at rest enabled
 - [ ] No hardcoded credentials in codebase
 - [ ] `.gitignore` excludes all sensitive files
@@ -160,7 +161,7 @@ We recommend:
 
 1. Regular dependency audits: `pip audit`
 2. Dependabot or similar for automated updates
-3. Pin dependency versions in `requirements.txt`
+3. Keep `requirements.txt` hash-pinned (re-lock from `requirements.in`)
 4. Review changelogs before updating major versions
 
 ## 📝 Changelog

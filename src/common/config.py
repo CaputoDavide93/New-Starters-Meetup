@@ -42,7 +42,20 @@ _secrets = _load_secrets()
 slack_cfg: dict[str, str] = {
     "bot_token": _secrets.get("slack_bot_token", ""),
     "signing_secret": _secrets.get("slack_signing_secret", ""),
-    "trigger_channel_id": _secrets.get("slack_trigger_channel", "C12345678"),
+    # Secret key is slack_trigger_channel_id; slack_trigger_channel kept for older secrets
+    "trigger_channel_id": _secrets.get(
+        "slack_trigger_channel_id", _secrets.get("slack_trigger_channel", "C12345678")
+    ),
+}
+
+# ──── INVITE ALLOWLIST ───────────────────────────────────────────────────
+# Only these domains may be booked via /newintro (invites are sent from the
+# company calendar). Override with "allowed_email_domains" (comma-separated).
+_allowed_domains_raw = _secrets.get("allowed_email_domains", "createfuture.com,xdesign.com")
+if isinstance(_allowed_domains_raw, str):
+    _allowed_domains_raw = _allowed_domains_raw.split(",")
+allowed_email_domains: set[str] = {
+    d.strip().lower().lstrip("@") for d in _allowed_domains_raw if d.strip()
 }
 
 # ──── AZURE AD CONFIGURATION (Coffee Intro) ──────────────────────────────
