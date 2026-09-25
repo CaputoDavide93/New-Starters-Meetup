@@ -215,7 +215,10 @@ New-Starters-Meetup/
 ├── scripts/
 │   ├── build.sh              # 🔧 builds the three deployment ZIPs into dist/
 │   └── cleanup_db.py         # 🧹 DynamoDB duplicate-user cleanup
-└── .env.example              # ⚙️ Lambda environment template
+├── .github/workflows/ci.yml  # 🤖 Ruff lint on push and PR
+├── .env.example              # ⚙️ Lambda environment template
+├── README.md  CONTRIBUTING.md  SECURITY.md  # 📄 community files
+└── LICENSE                   # 📄 MIT License
 ```
 
 `build/`, `deploy/` and `dist/` are build staging/output folders created by `scripts/build.sh` — they are gitignored, never edited by hand.
