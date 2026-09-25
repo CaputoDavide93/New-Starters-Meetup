@@ -10,7 +10,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 [![CI](https://github.com/CaputoDavide93/New-Starters-Meetup/actions/workflows/ci.yml/badge.svg)](https://github.com/CaputoDavide93/New-Starters-Meetup/actions/workflows/ci.yml)
 
-[Features](#-features) • [Architecture](#️-architecture) • [Quick Start](#-quick-start) • [Configuration](#️-configuration) • [Usage](#-usage) • [Contributing](#-contributing)
+[Features](#-features) • [Architecture](#️-architecture) • [Quick Start](#-quick-start) • [Configuration](#️-configuration) • [Usage](#-usage) • [Testing](#-testing) • [Contributing](#-contributing)
 
 </div>
 
@@ -30,7 +30,23 @@
 | 🙈 | No emails in logs | CloudWatch lines carry short hashed user refs (`user:1a2b3c4d`) instead of addresses |
 | 🔄 | Resilient Graph sync | Microsoft Graph calls time out after 30 s and retry throttling/5xx with backoff, honouring `Retry-After` |
 | 🚫 | Missing-calendar skip | Partners whose Google Calendar can't be read are skipped instead of failing the booking |
-| ⚡ | Serverless | Two AWS Lambdas (ARM64/Graviton) + a shared dependency layer — nothing to host |
+| ☁️ | Serverless | Two AWS Lambdas (ARM64/Graviton) + a shared dependency layer — nothing to host |
+
+---
+
+## 🗺️ Architecture
+
+Two Lambdas: a thin **UI Lambda** that answers Slack within its 3-second window, and a **Worker Lambda** that does the slow booking work asynchronously.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
+  <img src="docs/assets/architecture-light.svg" width="100%"
+       alt="A Slack user runs /newintro and submits the modal to the UI Lambda, which checks the email allowlist, acknowledges Slack and invokes the worker Lambda asynchronously. Both read their config from Secrets Manager. The worker syncs the Azure AD group, picks partners from DynamoDB, books slots in Google Calendar and posts progress to the Slack channel.">
+</picture>
+
+The worker syncs the Azure AD group into DynamoDB once per request, then, for each email: picks the least-used available partner, searches Google Calendar for a free 15-minute slot, creates the event with both attendees, bumps the partner's weight, and posts the confirmation to Slack.
+
+The diagram is drawn by `tools/gen_diagram.py`; run `python3 tools/gen_diagram.py` after changing it.
 
 ---
 
@@ -51,22 +67,6 @@
 
 ---
 
-## 🗺️ Architecture
-
-Two Lambdas: a thin **UI Lambda** that answers Slack within its 3-second window, and a **Worker Lambda** that does the slow booking work asynchronously.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
-  <img src="docs/assets/architecture-light.svg" width="100%"
-       alt="A Slack user runs /newintro and submits the modal to the UI Lambda, which checks the email allowlist, acknowledges Slack and invokes the worker Lambda asynchronously. Both read their config from Secrets Manager. The worker syncs the Azure AD group, picks partners from DynamoDB, books slots in Google Calendar and posts progress to the Slack channel.">
-</picture>
-
-The worker syncs the Azure AD group into DynamoDB once per request, then, for each email: picks the least-used available partner, searches Google Calendar for a free 15-minute slot, creates the event with both attendees, bumps the partner's weight, and posts the confirmation to Slack.
-
-The diagram is drawn by `tools/gen_diagram.py`; run `python3 tools/gen_diagram.py` after changing it.
-
----
-
 ## 🚀 Quick Start
 
 ### 1. Clone the repository
@@ -76,17 +76,7 @@ git clone https://github.com/CaputoDavide93/New-Starters-Meetup.git
 cd New-Starters-Meetup
 ```
 
-### 2. Run the tests
-
-```bash
-python3.13 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt boto3 pytest
-python -m pytest tests
-```
-
-Dependencies are declared in `requirements.in` and locked (with hashes) in `requirements.txt`. To change a dependency, edit `requirements.in` and re-lock with the `uv pip compile` command at the top of that file.
-
-### 3. Build the deployment packages
+### 2. Build the deployment packages
 
 ```bash
 ./scripts/build.sh
@@ -99,7 +89,7 @@ The dependency layer is **not** committed — `scripts/build.sh` builds it every
 3. Copies the two entry files into the `deploy/ui-lambda/` and `deploy/worker-lambda/` staging folders
 4. Zips everything into `dist/`: `ui-lambda.zip`, `worker-lambda.zip`, and `layer-python313-arm64.zip`
 
-### 4. Deploy with the AWS CLI
+### 3. Deploy with the AWS CLI
 
 ```bash
 # Publish the shared layer
@@ -215,7 +205,7 @@ New-Starters-Meetup/
 ├── scripts/
 │   ├── build.sh              # 🔧 builds the three deployment ZIPs into dist/
 │   └── cleanup_db.py         # 🧹 DynamoDB duplicate-user cleanup
-├── .github/workflows/ci.yml  # 🤖 Ruff lint on push and PR
+├── .github/workflows/ci.yml  # 🤖 Ruff lint + pytest on push and PR
 ├── .env.example              # ⚙️ Lambda environment template
 ├── README.md  CONTRIBUTING.md  SECURITY.md  # 📄 community files
 └── LICENSE                   # 📄 MIT License
@@ -223,12 +213,24 @@ New-Starters-Meetup/
 
 `build/`, `deploy/` and `dist/` are build staging/output folders created by `scripts/build.sh` — they are gitignored, never edited by hand.
 
-### CloudWatch logs
+---
+
+## 🧪 Testing
 
 ```bash
-# Replace with your function names
-aws logs tail /aws/lambda/intro-ui-lambda --follow
-aws logs tail /aws/lambda/intro-worker-lambda --follow
+python3.13 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt boto3 pytest
+python -m pytest tests
+```
+
+Dependencies are declared in `requirements.in` and locked (with hashes) in `requirements.txt`. To change a dependency, edit `requirements.in` and re-lock with the `uv pip compile` command at the top of that file.
+
+The suite runs fully offline (Secrets Manager, Slack, Google and Graph are stubbed) and covers the email allowlist, log redaction, the UI handler and the booking flow. `tests/test_diagrams.py` also checks that the committed SVGs match `tools/gen_diagram.py`.
+
+CI ([ci.yml](.github/workflows/ci.yml)) runs Ruff and this suite on every push and pull request:
+
+```bash
+ruff check --select E4,E7,E9,F src scripts tests
 ```
 
 ---
@@ -245,6 +247,20 @@ aws logs tail /aws/lambda/intro-worker-lambda --follow
 | Timeout warnings in the channel | The worker warns near the 15-minute Lambda cap and stops early — reduce the email list or meetings per person |
 | "Permission denied" | Check the Lambdas' IAM roles (Secrets Manager read, DynamoDB read/write, `lambda:InvokeFunction` for the UI role) |
 
+### CloudWatch logs
+
+```bash
+# Replace with your function names
+aws logs tail /aws/lambda/intro-ui-lambda --follow
+aws logs tail /aws/lambda/intro-worker-lambda --follow
+```
+
+---
+
+## 🔒 Security
+
+Please see [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+
 ---
 
 ## 🤝 Contributing
@@ -256,12 +272,6 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 3. Commit changes (`git commit -m 'feat: add amazing feature'`)
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
----
-
-## 🔒 Security
-
-Please see [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ---
 
