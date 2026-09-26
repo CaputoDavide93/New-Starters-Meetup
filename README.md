@@ -36,17 +36,17 @@
 
 ## 🗺️ Architecture
 
-Two Lambdas: a thin **UI Lambda** that answers Slack within its 3-second window, and a **Worker Lambda** that does the slow booking work asynchronously.
-
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
   <img src="docs/assets/architecture-light.svg" width="100%"
-       alt="A Slack user runs /newintro and submits the modal to the UI Lambda, which checks the email allowlist, acknowledges Slack and invokes the worker Lambda asynchronously. Both read their config from Secrets Manager. The worker syncs the Azure AD group, picks partners from DynamoDB, books slots in Google Calendar and posts progress to the Slack channel.">
+       alt="Slack sends /newintro to the UI Lambda, which checks the allowlist and invokes the worker Lambda asynchronously; the worker reads its config from Secrets Manager, syncs Azure AD, picks partners from DynamoDB, books Google Calendar events and posts progress back to Slack.">
 </picture>
+
+Two Lambdas: a thin **UI Lambda** that answers Slack within its 3-second window, and a **Worker Lambda** that does the slow booking work asynchronously.
 
 The worker syncs the Azure AD group into DynamoDB once per request, then, for each email: picks the least-used available partner, searches Google Calendar for a free 15-minute slot, creates the event with both attendees, bumps the partner's weight, and posts the confirmation to Slack.
 
-The diagram is drawn by `tools/gen_diagram.py`; run `python3 tools/gen_diagram.py` after changing it.
+The diagram is drawn by `tools/gen_diagram.py`; run `python3 tools/gen_diagram.py` after changing it (CI runs `--check`).
 
 ---
 

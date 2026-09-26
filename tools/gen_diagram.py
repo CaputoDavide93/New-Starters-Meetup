@@ -1,29 +1,24 @@
 #!/usr/bin/env python3
-"""Draw every diagram in this repository as SVG, one file per colour scheme.
+"""Draw this repository's diagrams as SVG, one file per colour scheme.
 
   docs/assets/<name>-light.svg
   docs/assets/<name>-dark.svg
 
-This replaces the Mermaid flowchart the README used to carry. GitHub renders
-Mermaid with its own version and its own theme, decodes HTML entities before
-parsing, and lays the graph out however it likes. Drawn here, each picture says
-one thing and stays put.
+House diagram kit (canonical copy: ~/.claude/skills/new-repo/assets/gen_diagram.py,
+first built for InkFrame-Immich). The engine below the "diagrams" line is shared
+verbatim across repos; only the diagram functions and DIAGRAMS change per repo.
 
-**GitHub sanitises SVG in markdown**, so there is no <style>, no <script>, no
-web font and no <foreignObject>. Everything is a presentation attribute and the
-type is a system stack. Each pair is served from one <picture>, which GitHub
-switches on prefers-color-scheme.
+GitHub sanitises SVG in markdown: no <style>, no <script>, no web font, no
+<foreignObject>. Everything is a presentation attribute and the type is a system
+stack. Each pair is served from one <picture>, which GitHub switches on
+prefers-color-scheme. Layout is explicit rather than solved.
 
-Layout is explicit rather than solved: the diagrams are small enough that
-placing them by hand is cheaper than a layout engine nobody can predict.
+House rules: a slate scale, a single accent on the one thing that matters in each
+picture, drawn icons rather than emoji, monospace for anything literally typed,
+text contrast at or above 4.5:1 in both schemes.
 
-House rules: a slate scale, a single accent on the one thing that matters in
-each picture, drawn icons rather than emoji, monospace for anything that is
-literally typed (paths, endpoints, env vars), a footer sentence under every
-diagram, and text contrast at or above 4.5:1 in both schemes.
-
-Run it after changing a diagram; tests/test_diagrams.py fails if the committed
-SVGs and this file disagree.
+  python3 tools/gen_diagram.py          # write the SVGs
+  python3 tools/gen_diagram.py --check  # exit 1 if any SVG is stale (for CI)
 """
 from __future__ import annotations
 
@@ -47,15 +42,59 @@ SCHEMES = {
 
 # Stroked glyphs on a 24x24 grid, drawn rather than typed.
 ICONS = {
-    "user":     "M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7",
+    "library":  "M3 7h13v11H3z M6 4h13v11 M7 14l3-3 2.5 2.5L15 11l2 2.5",
+    "chip":     "M8 8h8v8H8z M5 5h14v14H5z M10 2v3 M14 2v3 M10 19v3 M14 19v3 M2 10h3 M2 14h3 M19 10h3 M19 14h3",
+    "frame":    "M3 5h18v12H3z M9 20h6 M12 17v3 M6 13l3.5-4 2.5 3 2-2.5L18 13",
+    "house":    "M4 11 12 4l8 7 M6 10v9h12v-9 M10 19v-5h4v5",
+    "moon":     "M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z",
     "bolt":     "M13 2 4 14h7l-1 8 9-12h-7z",
-    "key":      "M8 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M12 12h9 M18 12v3 M15 12v2",
-    "users":    "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6 "
-                "M16 4.3a3.5 3.5 0 0 1 0 6.4 M18 14.2c2.1.7 3.5 2.8 3.5 5.8",
-    "database": "M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6 "
-                "M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3",
+    "server":   "M4 4h16v6H4z M4 14h16v6H4z M7 7h.01 M7 17h.01 M11 7h6 M11 17h6",
+    "database": "M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6 M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3",
+    "cloud":    "M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.5 4.3 4.3 0 0 0 7 18z",
+    "laptop":   "M5 5h14v10H5z M2 19h20 M9 19l1-2h4l1 2",
+    "phone":    "M8 2h8a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z M11 18h2",
+    "mail":     "M3 6h18v12H3z M3 7l9 6 9-6",
+    "clock":    "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M12 7v5l3 2",
+    "shield":   "M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z M9 12l2 2 4-4",
+    "box":      "M12 3 3 7.5v9L12 21l9-4.5v-9z M3 7.5 12 12l9-4.5 M12 12v9",
+    "user":     "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21c0-4 3.6-6 8-6s8 2 8 6",
+    "users":    "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5 M16 4.5a3.5 3.5 0 0 1 0 6.5 M18 14.8c2.4.6 4 2.3 4 5.2",
+    "key":      "M14 10a4 4 0 1 0-3.2 3.9L13 16h2v2h2v2h3v-3l-5.1-5.1c.1-.3.1-.6.1-.9z M8 9h.01",
+    "camera":   "M3 8h4l2-3h6l2 3h4v11H3z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+    "chart":    "M4 20V4 M4 20h16 M8 16v-5 M12 16V8 M16 16v-3",
+    "api":      "M8 7 3 12l5 5 M16 7l5 5-5 5 M14 4l-4 16",
+    "bell":     "M6 16V11a6 6 0 1 1 12 0v5l2 2H4z M10 21h4",
+    "chat":     "M4 5h16v11H9l-5 4z",
+    "gear":     "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4z",
+    "code":     "M4 4h16v16H4z M9 9l-3 3 3 3 M15 9l3 3-3 3",
+    "tv":       "M3 5h18v12H3z M8 21h8",
+    "play":     "M6 4l14 8-14 8z",
+    "file":     "M6 2h8l5 5v15H6z M14 2v5h5 M9 13h6 M9 17h6",
+    "lock":     "M6 11h12v10H6z M8 11V7a4 4 0 0 1 8 0v4",
+    "globe":    "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9 M12 3c-2.5 2.7-3.8 5.7-3.8 9s1.3 6.3 3.8 9",
+    "wifi":     "M2 9a15 15 0 0 1 20 0 M5.5 12.5a10 10 0 0 1 13 0 M9 16a5 5 0 0 1 6 0 M12 19.5h.01",
+    "disk":     "M3 6h18v12H3z M7 14h.01 M11 14h6",
+    "terminal": "M3 5h18v14H3z M7 10l3 2.5L7 15 M12.5 15h4.5",
     "calendar": "M4 6h16v15H4z M4 10h16 M8 3v5 M16 3v5 M8 14h2 M14 14h2 M8 17.5h2",
-    "chat":     "M4 5h16v11H9l-5 4z M8 9h8 M8 12h5",
+    "refresh":  "M20 12a8 8 0 1 1-2.3-5.7 M20 4v4.5h-4.5",
+    "search":   "M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 1 0 0-13z M15.5 15.5 20 20",
+    "filter":   "M4 5h16l-6 7.5V19l-4 1.5v-8z",
+    "send":     "M21 3 3 10.5l7.5 3 3 7.5z M10.5 13.5 21 3",
+    "alert":    "M12 3 22 20H2z M12 10v4 M12 17h.01",
+    "archive":  "M3 4h18v4H3z M5 8v12h14V8 M10 12h4",
+    "tag":      "M3 3h8l10 10-8 8L3 11z M7.5 7.5h.01",
+    "user_plus":  "M10 11a4 4 0 1 0 0-8 4 4 0 1 0 0 8z M3 21c0-4 3-7 7-7s7 3 7 7 M19 8v6 M16 11h6",
+    "user_x":     "M10 11a4 4 0 1 0 0-8 4 4 0 1 0 0 8z M3 21c0-4 3-7 7-7s7 3 7 7 M16.5 8.5l5 5 M21.5 8.5l-5 5",
+    "user_check": "M10 11a4 4 0 1 0 0-8 4 4 0 1 0 0 8z M3 21c0-4 3-7 7-7s7 3 7 7 M16 11l2 2 4-4",
+    "bucket":   "M4 6h16l-2 14H6z M4 6c0-1.5 3.6-2.5 8-2.5s8 1 8 2.5",
+    "download": "M12 3v12 M7 10l5 5 5-5 M4 20h16",
+    "wrench":   "M14.7 6.3a4 4 0 0 1 5-1.5l-2.6 2.6.5 2 2 .5 2.6-2.6a4 4 0 0 1-5.4 5.1L10 19.2",
+    "bug":      "M9 7a3 3 0 0 1 6 0 M7 9h10v5a5 5 0 0 1-10 0z M12 9v10 M3 12h4 M17 12h4",
+    "pulse":    "M3 12h4l2.5-6 5 12 2.5-6h4",
+    "sliders":  "M4 6h9 M17 6h3 M4 12h3 M11 12h9 M4 18h11 M19 18h1 M15 4v4 M9 10v4 M17 16v4",
+    "heart":    "M12 20s-7.5-4.6-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 3c0 5.4-7.5 10-7.5 10z",
+    "sparkle":  "M11 3l1.9 5.6L18.5 10.5l-5.6 1.9L11 18l-1.9-5.6L3.5 10.5l5.6-1.9z",
+    "rewind":   "M11 6 4 12l7 6z M20 6l-7 6 7 6z",
 }
 
 
@@ -142,7 +181,7 @@ class Canvas:
         path = " ".join(f"{x},{y}" for x, y in pts)
         out = [f'<polyline points="{path}" fill="none" stroke="{c["line"]}" '
                f'stroke-width="1.5"{d} marker-end="url(#a)"'
-               + (' marker-start="url(#a)"' if both else "") + "/>"]
+               + (' marker-start="url(#b)"' if both else "") + "/>"]
         if label:
             (x1, y1), (x2, y2) = pts[0], pts[-1]
             lx = x1 + (x2 - x1) * label_at
@@ -174,53 +213,62 @@ class Canvas:
             f'<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" '
             f'markerHeight="6" orient="auto-start-reverse">'
             f'<path d="M0 0 10 5 0 10z" fill="{c["line"]}"/></marker>'
+            f'<marker id="b" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="6" '
+            f'markerHeight="6" orient="auto">'
+            f'<path d="M10 0 0 5 10 10z" fill="{c["line"]}"/></marker>'
             f'</defs>' + "".join(self.parts) + "</svg>"
         )
 
-
 # ── the diagrams ──────────────────────────────────────────────────────────
-
 def architecture(scheme):
     """Two Lambdas: one answers Slack at once, the other does the slow work."""
-    k = Canvas(1180, 520, scheme,
-               "A Slack user runs /newintro and submits the modal to the UI Lambda, which checks "
-               "the email allowlist, acknowledges Slack and invokes the worker Lambda "
-               "asynchronously. Both read their config from Secrets Manager. The worker syncs the "
-               "Azure AD group, picks partners from DynamoDB, books slots in Google Calendar and "
-               "posts progress to the Slack channel.")
-    c = k.c
-    top, H = 150, 84
-    mid = top + H / 2
-    ux, uw = 290, 230
-    wx, ww = 652, 240
+    k = Canvas(1180, 650, scheme,
+               "Slack sends /newintro and the modal to the UI Lambda, which checks the email "
+               "allowlist, acknowledges Slack and invokes the worker Lambda asynchronously. Both "
+               "read one JSON config from Secrets Manager. The worker syncs the Azure AD group, "
+               "picks partners by weight from DynamoDB, books slots in Google Calendar and posts "
+               "progress back to Slack.")
+    W, H = 268, 108
+    xs, top = [24, 456, 888], 56
+    r2, r3 = 260, 464
+    m1, m2 = top + H / 2, r2 + H / 2
+    gap = (top + H + r2) / 2
     k.add(
-        k.box(440, 40, 280, 64, "Secrets Manager", ["one JSON config secret"], icon="key"),
-        k.edge([(470, 104 + 8), (470, top - 8)], dash=True),
-        k.edge([(690, 104 + 8), (690, top - 8)], dash=True),
-        k.box(24, top, 170, H, "Slack user", ["fills in the modal", "and submits it"], icon="user"),
-        k.box(ux, top, uw, H, "UI Lambda", ["checks the email allowlist,", "acks Slack within 3 s"],
+        k.box(xs[0], top, W, H, "Slack", ["/newintro modal in,", "progress posts out"], icon="chat"),
+        k.box(xs[1], top, W, H, "UI Lambda", ["checks the email allowlist,", "acks Slack within 3 s"],
               icon="bolt"),
-        k.box(wx, top, ww, H, "Worker Lambda", ["books every intro, stops", "safely near 15 minutes"],
+        k.box(xs[2], top, W, H, "Secrets Manager", ["one JSON config secret,", "read at cold start"],
+              icon="key"),
+        k.box(xs[0], r2, W, H, "Azure AD", ["Graph group members,", "departed users pruned"],
+              icon="users"),
+        k.box(xs[1], r2, W, H, "Worker Lambda", ["books intro by intro, stops", "safely near 15 minutes"],
               icon="bolt", tone="accent"),
-        k.edge([(194 + 8, mid), (ux - 8, mid)], label="/newintro"),
-        k.edge([(ux + uw + 8, mid), (wx - 8, mid)], label="async invoke"),
+        k.box(xs[2], r2, W, H, "DynamoDB", ["partner weights, one table", "per intro type"],
+              icon="database"),
+        k.box(xs[1], r3, W, H, "Google Calendar", ["FreeBusy slot 11:00-15:00,", "invite sent to both people"],
+              icon="calendar"),
+        # Row 1: the request in, the config in.
+        k.edge([(xs[0] + W + 8, m1), (xs[1] - 8, m1)], label="/newintro + submit"),
+        k.edge([(xs[2] - 8, m1), (xs[1] + W + 8, m1)], label="config JSON", dash=True),
+        # UI hands off down the middle.
+        k.edge([(xs[1] + W / 2, top + H + 8), (xs[1] + W / 2, r2 - 8)]),
+        k.text(xs[1] + W / 2 - 10, gap + 4, "async invoke", size=11.5, font=MONO,
+               colour=k.c["chip"], anchor="end"),
+        # Worker posts back to Slack, and reads the same secret.
+        k.edge([(xs[1] + 24, r2 - 8), (xs[1] + 24, gap), (xs[0] + W / 2, gap),
+                (xs[0] + W / 2, top + H + 8)], label="progress posts"),
+        k.edge([(xs[2] + W / 2, top + H + 8), (xs[2] + W / 2, gap), (xs[1] + W - 24, gap),
+                (xs[1] + W - 24, r2 - 8)], label="config JSON", dash=True),
+        # Row 2: the partner pool in, weights both ways.
+        k.edge([(xs[0] + W + 8, m2), (xs[1] - 8, m2)], label="group members"),
+        k.edge([(xs[1] + W + 8, m2), (xs[2] - 8, m2)], label="partner weights", both=True),
+        # Row 3: the booking itself.
+        k.edge([(xs[1] + W / 2, r2 + H + 8), (xs[1] + W / 2, r3 - 8)]),
+        k.text(xs[1] + W / 2 + 14, (r2 + H + r3) / 2 + 4, "FreeBusy + event insert", size=11.5,
+               font=MONO, colour=k.c["chip"]),
+        k.footer("The UI Lambda only validates and hands off inside Slack's 3-second window; "
+                 "every slow call (Graph, DynamoDB, Calendar) happens in the worker."),
     )
-    # One trunk out of the worker, one branch per service it drives.
-    by, bus = 330, 290
-    xs = [290, 512, 734, 956]
-    services = [
-        ("Azure AD", ["group members in,", "departed pruned"], "users"),
-        ("DynamoDB", ["partner weights,", "least-used first"], "database"),
-        ("Google Calendar", ["FreeBusy search,", "event with both people"], "calendar"),
-        ("Slack channel", ["progress and", "confirmations"], "chat"),
-    ]
-    trunk = wx + ww / 2
-    for x, (title, subs, icon) in zip(xs, services):
-        cx = x + 100
-        k.add(k.edge([(trunk, top + H + 8), (trunk, bus), (cx, bus), (cx, by - 8)]),
-              k.box(x, by, 200, 84, title, subs, icon=icon))
-    k.add(k.footer("The UI Lambda answers inside Slack's three-second window and hands the whole "
-                   "request over; the worker syncs the group once, then books intro by intro."))
     return k.render()
 
 
@@ -230,12 +278,26 @@ DIAGRAMS = {
 
 
 def main() -> None:
+    import sys
+    check = "--check" in sys.argv[1:]
     out = ROOT / "docs" / "assets"
     out.mkdir(parents=True, exist_ok=True)
+    stale = []
     for name, fn in DIAGRAMS.items():
         for scheme in SCHEMES:
             path = out / f"{name}-{scheme}.svg"
-            path.write_text(fn(scheme), encoding="utf-8")
+            svg = fn(scheme)
+            if check:
+                if not path.exists() or path.read_text(encoding="utf-8") != svg:
+                    stale.append(str(path.relative_to(ROOT)))
+            else:
+                path.write_text(svg, encoding="utf-8")
+    if check:
+        if stale:
+            print("stale diagrams (run python3 tools/gen_diagram.py):\n  " + "\n  ".join(stale))
+            sys.exit(1)
+        print(f"{len(DIAGRAMS) * len(SCHEMES)} diagram files up to date")
+        return
     print(f"{len(DIAGRAMS)} diagrams x {len(SCHEMES)} schemes -> docs/assets/")
 
 
