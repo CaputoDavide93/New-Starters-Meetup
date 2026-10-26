@@ -1,5 +1,5 @@
 """
-Configuration management for IntroChat Lambda functions
+Configuration management for the New Starters MeetUp Lambda functions
 
 Loads from AWS Secrets Manager via CONFIG_SECRET environment variable.
 The secret should contain a JSON object with all configuration.
@@ -50,7 +50,7 @@ slack_cfg: dict[str, str] = {
 
 # ──── INVITE ALLOWLIST ───────────────────────────────────────────────────
 # Only these domains may be booked via /newintro (invites are sent from the
-# company calendar). Override with "allowed_email_domains" (comma-separated).
+# organisation's calendar). Override with "allowed_email_domains" (comma-separated).
 _allowed_domains_raw = _secrets.get("allowed_email_domains", "example.com")
 if isinstance(_allowed_domains_raw, str):
     _allowed_domains_raw = _allowed_domains_raw.split(",")

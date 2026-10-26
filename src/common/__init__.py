@@ -1,5 +1,5 @@
 """
-IntroChat Common Package - Shared utilities for Lambda functions
+New Starters MeetUp common package - Shared utilities for Lambda functions
 
 Contains:
 - config: Configuration management (environment-based)

@@ -1,7 +1,7 @@
 """
 Email helpers
 
-Validates /newintro participant emails against the allowed company domains
+Validates /newintro participant emails against the allowed domains
 and produces non-identifying references for log lines.
 """
 

@@ -13,7 +13,7 @@ def test_trigger_channel_read_from_secret_key():
     assert slack_cfg["trigger_channel_id"] == "CTRIGGER"
 
 
-def test_company_addresses_accepted_and_normalised():
+def test_allowed_domain_addresses_accepted_and_normalised():
     valid, rejected = parse_email_list(
         " Jane.Doe@Example.com, john@example.org\njane.doe@example.com", ALLOWED
     )
