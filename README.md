@@ -186,7 +186,7 @@ New-Starters-Meetup/
 ├── requirements.txt          # 🔒 hash-pinned lock used by build.sh
 ├── .github/workflows/ci.yml  # 🤖 Ruff, pytest and generator checks
 ├── .env.example              # ⚙️ Lambda environment template
-└── README.md  CONTRIBUTING.md  SECURITY.md  AGENTS.md  CLAUDE.md  LICENSE
+└── README.md  CONTRIBUTING.md  SECURITY.md  AGENTS.md  LICENSE
 ```
 
 `build/`, `deploy/` and `dist/` are created by `scripts/build.sh`, gitignored,
