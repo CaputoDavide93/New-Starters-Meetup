@@ -183,7 +183,7 @@ New-Starters-Meetup/
 ├── llms.txt                  # 🤖 one-page summary for AI search
 ├── requirements.in           # 📦 top-level layer deps
 ├── requirements.txt          # 🔒 hash-pinned lock used by build.sh
-├── .github/workflows/ci.yml  # 🤖 Ruff, pytest and generator checks
+├── .github/                  # 🤖 CI workflow and dependabot config
 ├── .env.example              # ⚙️ Lambda environment template
 └── README.md  CONTRIBUTING.md  SECURITY.md  AGENTS.md  LICENSE
 ```
