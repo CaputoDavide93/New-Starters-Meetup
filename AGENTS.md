@@ -28,3 +28,10 @@ This repository follows Davide Caputo's house standards. The full spec is
 - One `.env.example` with every variable the code reads (obviously fake placeholders). Examples are `<name>.example.<ext>`.
 
 <!-- ── repo-specific notes below this line ─────────────────────────────── -->
+
+## Repo notes
+
+- Runtime identifiers stay as they are: the `/newintro` command, config keys (`azure_tenant_id`, `buddy_azure_tenant_id` and the rest), env vars (`CONFIG_SECRET`, `WORKER_FUNCTION_NAME`, `DYNAMODB_TABLE_NAME`, `BUDDY_DYNAMODB_TABLE_NAME`) and the DynamoDB table names `IntroUsers` and `BuddyUsers`.
+- `make check` is the gate: ruff, pytest, `tools/gen_diagram.py --check` and `tools/brand/check-icon.sh`.
+- There is no UI beyond a Slack modal, so there are no screenshots. Do not add a Block Kit preview as one.
+- Booking window, time zone, lunch break and cadence are constants in code; docs state them, so change both together.

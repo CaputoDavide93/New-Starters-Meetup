@@ -79,6 +79,19 @@ Create a `secrets.local.json` for local testing (never commit this!):
    - Expected vs actual behavior
    - Relevant logs (redact sensitive data!)
 
+### 🧭 Reporting an untested setup
+
+The checks stub Slack, Azure AD, Google and AWS, so reports from real deployments
+help most. Open an issue and include:
+
+- What you ran: `/newintro` intro type, number of emails, meetings per person
+- AWS region, Lambda runtime and architecture
+- Whether the Azure AD group is a Microsoft 365 group, a security group or a dynamic group
+- The relevant CloudWatch lines (logs carry hashed refs, but check them for tokens, tenant IDs and addresses before you paste)
+- What you expected, and what happened
+
+Never paste the Secrets Manager secret, tokens or real addresses.
+
 ### 💡 Suggesting Features
 
 1. Check existing feature requests
