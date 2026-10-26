@@ -98,13 +98,6 @@ The Lambda functions require minimal permissions:
     {
       "Effect": "Allow",
       "Action": [
-        "cloudwatch:PutMetricData"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
         "logs:PutLogEvents"

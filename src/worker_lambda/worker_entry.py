@@ -16,7 +16,6 @@ import os
 import logging
 import time
 
-import boto3
 from slack_sdk import WebClient
 
 from intro_common.config import (
@@ -57,7 +56,6 @@ logging.basicConfig(
 )
 
 SLACK = WebClient(token=slack_cfg["bot_token"])
-CLOUDWATCH = boto3.client('cloudwatch')
 
 # Meeting cadence (business days, not calendar days)
 CADENCE_BUSINESS_DAYS = 2
@@ -84,28 +82,6 @@ def add_business_days(start: datetime.date, business_days: int) -> datetime.date
             days_added += 1
     
     return current
-
-
-def _publish_metrics(namespace: str, metrics: dict) -> None:
-    """Publish custom metrics to CloudWatch."""
-    try:
-        metric_data = []
-        for metric_name, value in metrics.items():
-            metric_data.append({
-                'MetricName': metric_name,
-                'Value': value,
-                'Unit': 'Count' if 'Count' in metric_name else 'Milliseconds',
-                'Timestamp': datetime.datetime.now(datetime.timezone.utc)
-            })
-
-        if metric_data:
-            CLOUDWATCH.put_metric_data(
-                Namespace=namespace,
-                MetricData=metric_data
-            )
-            LOG.debug(f"Published {len(metric_data)} metrics to CloudWatch")
-    except Exception as e:
-        LOG.warning(f"Failed to publish metrics: {e}")
 
 
 def _safe_slack_post(channel: str, text: str, max_retries: int = 2) -> dict | None:
