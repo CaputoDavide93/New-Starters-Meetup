@@ -156,7 +156,7 @@ Describe how you tested the changes
 ### Python Style
 
 - Follow [PEP 8](https://peps.python.org/pep-0008/)
-- Lint with [ruff](https://docs.astral.sh/ruff/) — CI runs `ruff check --select E4,E7,E9,F src scripts tests`
+- Lint with [ruff](https://docs.astral.sh/ruff/), and CI runs `ruff check --select E4,E7,E9,F src scripts tests`
 - Use type hints (Python 3.13+ style)
 - Maximum line length: 100 characters
 - Use f-strings for formatting
