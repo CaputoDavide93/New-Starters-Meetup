@@ -27,7 +27,7 @@ TEST_SECRET = {
     "google_calendar_id": "team@group.calendar.google.com",
     "dynamodb_table_name": "IntroUsers",
     "buddy_dynamodb_table_name": "BuddyUsers",
-    # Fictitious allow-list so tests never depend on real company domains
+    # Fictitious allow-list so tests never depend on real domains
     "allowed_email_domains": "example.com, @Example.org",
 }
 

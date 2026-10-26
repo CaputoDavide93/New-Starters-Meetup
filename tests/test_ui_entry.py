@@ -35,7 +35,7 @@ def test_external_email_rejected_with_modal_error():
     client.chat_postMessage.assert_not_called()
 
 
-def test_company_emails_invoke_worker_with_normalised_list():
+def test_allowed_domain_emails_invoke_worker_with_normalised_list():
     ack, client, logger = mock.Mock(), mock.Mock(), mock.Mock()
     with mock.patch.object(ui_entry, "lambda_client") as lam:
         ui_entry.handle_submit(ack, _body("A@Example.com,\n b@example.org"), client, logger)

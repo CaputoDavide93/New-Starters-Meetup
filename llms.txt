@@ -1,0 +1,29 @@
+# New Starters MeetUp
+
+> New Starters MeetUp is a free, open-source (MIT) Slack bot for onboarding teams. The /newintro slash command opens a Slack modal; you enter new starters' email addresses, and the bot books 15-minute coffee-chat or buddy intro meetings in Google Calendar. It picks partners from an Azure AD group, favours partners who have done the fewest intros, finds a slot that is free for the team calendar, the new starter and the partner, and posts progress to the Slack channel. It runs as two AWS Lambdas (ARM64, Python 3.13) with DynamoDB and Secrets Manager.
+
+Key facts:
+
+- Booking rules: weekdays 11:00 to 15:00 in the Europe/Dublin time zone, 15-minute steps, 12:00 to 13:30 excluded, up to 7 days searched from the start date. Meetings for one person are at least two business days apart. These are constants in code, not settings.
+- Partner choice: random among the partners with the lowest intro count, stored in DynamoDB. Departed people are removed when the Azure AD group syncs.
+- Intro types: Coffee and Buddy, each with its own Azure AD group, DynamoDB table and event templates.
+- Safety: only addresses on the configured allowed_email_domains can be booked, checked in the modal and again in the worker. Logs carry hashed refs, not email addresses.
+- Configuration: one JSON secret in AWS Secrets Manager (CONFIG_SECRET); WORKER_FUNCTION_NAME names the worker Lambda. The secret is read from eu-west-1.
+- Requirements: Python 3.13, an AWS account, a Slack app, an Azure AD app registration and a Google Workspace service account with domain-wide delegation.
+- Tested: the pytest suite (Slack, Google, Graph and Secrets Manager stubbed) on Python 3.13 on macOS and in CI on Ubuntu; ruff; diagram checks; scripts/build.sh builds the three ZIPs. Unverified: a live Slack workspace, a real Azure AD tenant, Google Calendar, deployment on AWS Lambda, regions other than eu-west-1.
+- Trade-off: you deploy and run the AWS, Slack, Azure AD and Google setup yourself, and the time window and time zone are changed in code.
+- No screenshots exist because the only interface is a Slack modal.
+
+## Install
+
+1. git clone https://github.com/CaputoDavide93/New-Starters-Meetup.git && cd New-Starters-Meetup
+2. ./scripts/build.sh, then publish the layer and upload the two function ZIPs from dist/ to Lambda
+3. Create the Secrets Manager secret, the two DynamoDB tables and the Slack app, and set the /newintro request URL to the UI Lambda
+
+## Docs
+
+- [README](https://github.com/CaputoDavide93/New-Starters-Meetup/blob/main/README.md): why it exists, comparison, install, configuration, tested and unverified
+- [Setup](https://github.com/CaputoDavide93/New-Starters-Meetup/blob/main/docs/setup.md): build, secret keys, tables, Lambdas, IAM, Slack app
+- [How it works](https://github.com/CaputoDavide93/New-Starters-Meetup/blob/main/docs/how-it-works.md): one request from modal to calendar invite
+- [Troubleshooting](https://github.com/CaputoDavide93/New-Starters-Meetup/blob/main/docs/troubleshooting.md): symptoms and fixes
+- [FAQ](https://github.com/CaputoDavide93/New-Starters-Meetup/blob/main/docs/faq.md): short answers

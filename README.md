@@ -1,8 +1,10 @@
 <div align="center">
 
+<img src="docs/assets/brand/icon.svg" width="96" alt="New Starters MeetUp icon: two overlapping rings, one meeting between two people">
+
 # 🤝 New Starters MeetUp
 
-**A Slack `/newintro` command that books coffee-chat and buddy intro meetings for new starters — serverless, on two AWS Lambdas.**
+**Book every new starter's coffee and buddy intros with one Slack command: it picks the least-used partner and a free Google Calendar slot**
 
 ![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
 ![AWS Lambda](https://img.shields.io/badge/AWS_Lambda-ARM64-FF9900?logo=awslambda&logoColor=white)
@@ -10,27 +12,68 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 [![CI](https://github.com/CaputoDavide93/New-Starters-Meetup/actions/workflows/ci.yml/badge.svg)](https://github.com/CaputoDavide93/New-Starters-Meetup/actions/workflows/ci.yml)
 
-[Features](#-features) • [Architecture](#️-architecture) • [Quick Start](#-quick-start) • [Configuration](#️-configuration) • [Usage](#-usage) • [Testing](#-testing) • [Contributing](#-contributing)
-
 </div>
 
 ---
 
 ## ✨ Features
 
-| | Feature | What it does |
+New Starters MeetUp is a free, open-source (MIT) Slack bot for onboarding
+coordinators. You type `/newintro`, paste the email addresses of your new
+starters, and the bot books 15-minute coffee-chat or buddy meetings in Google
+Calendar. It chooses the partners from an Azure AD group, spreads the load
+across them, and reports progress back to the Slack channel.
+
+### Why it exists
+
+Booking intros for a new cohort by hand means opening three calendars per
+meeting, finding a gap, and remembering who already did a coffee chat last
+week. The same few friendly people end up doing most of them.
+
+This bot does the searching and the bookkeeping. It checks the team calendar,
+the new starter and the partner in one Google FreeBusy call, books the first
+free slot, and counts every booking so the next partner is someone who has done
+fewer.
+
+| | New Starters MeetUp | Booking by hand | Scheduling-link tools |
+|---|---|---|---|
+| Finds a slot free for the team calendar, the new starter and the partner | Yes, one FreeBusy call | You compare calendars yourself | Each person picks a time themselves |
+| Chooses the partner | One of the least-used, picked at random among ties | Whoever comes to mind | You assign partners elsewhere |
+| Keeps meetings spaced out | Two business days apart per person | You track it | You track it |
+| Pool of partners | An Azure AD group, synced on every request | A list you maintain | A list you maintain |
+| Where it runs | Two AWS Lambdas you deploy | Nowhere | A hosted service |
+| Setup effort | Slack app, Azure AD app, Google service account, AWS | None | Account sign-up |
+
+The trade-off: you deploy and own the infrastructure (AWS, Slack, Azure AD and
+Google Workspace), and the booking window, time zone and lunch break are set in
+code, not in a settings page. See [How it works](docs/how-it-works.md).
+
+### Install in 3 steps
+
+You need Python 3.13, an AWS account, a Slack app, an Azure AD app registration
+and a Google Workspace service account with domain-wide delegation. The full
+list is in [Prerequisites](#-prerequisites).
+
+1. **Build the packages.** `./scripts/build.sh` writes the two function ZIPs and the dependency layer into `dist/`.
+2. **Deploy and configure.** Publish the layer, create the two Lambdas and the two DynamoDB tables, then store your settings in one Secrets Manager secret. [Setup guide](docs/setup.md).
+3. **Point Slack at it.** Set the `/newintro` command's request URL to the UI Lambda's URL, then run `/newintro` in a channel.
+
+Steps 2 and 3 need real AWS, Slack, Azure AD and Google accounts and are
+unverified in this repository's checks. See [Tested and unverified](#-tested-and-unverified).
+
+| | Feature | What it does for you |
 |---|---|---|
 | ⚡ | `/newintro` slash command | Opens a Slack modal to book Coffee ☕️ or Buddy 🤝 intros for a list of emails |
-| 🪪 | Azure AD group sync | Pulls the pool of intro partners from an Azure AD group and prunes departed users |
-| ⚖️ | Weighted partner picking | DynamoDB tracks how often each partner has been used and favours the least-used |
-| 📅 | Calendar-aware booking | Google Calendar FreeBusy search finds a free 15-minute slot (11:00–15:00, weekdays) |
-| 🔁 | Business-day cadence | Spaces each person's meetings two business days apart, skipping weekends |
-| 💬 | Live status updates | Posts booking progress, per-meeting confirmations, and a final summary to the channel |
-| 🛡️ | Email-domain allowlist | Only addresses on your configured domains can be booked — checked in the modal *and* again in the worker |
-| 🙈 | No emails in logs | CloudWatch lines carry short hashed user refs (`user:1a2b3c4d`) instead of addresses |
-| 🔄 | Resilient Graph sync | Microsoft Graph calls time out after 30 s and retry throttling/5xx with backoff, honouring `Retry-After` |
-| 🚫 | Missing-calendar skip | Partners whose Google Calendar can't be read are skipped instead of failing the booking |
-| ☁️ | Serverless | Two AWS Lambdas (ARM64/Graviton) + a shared dependency layer — nothing to host |
+| 🪪 | Azure AD group sync | Keeps the partner pool current from a group, and removes departed people from the database |
+| ⚖️ | Fair partner picking | DynamoDB counts each partner's intros, and the next pick comes from those with the fewest |
+| 📅 | Calendar-aware booking | One Google FreeBusy call finds a free 15-minute slot, 11:00 to 15:00 on weekdays, lunch excluded |
+| 🔁 | Business-day cadence | Spaces one person's meetings two business days apart, skipping weekends |
+| 💬 | Live status updates | Posts progress, a line per booking and a final summary to the channel |
+| 🛡️ | Domain allowlist | Only addresses on your allowed domains can be booked, checked in the modal and again in the worker |
+| 🙈 | No emails in logs | CloudWatch lines carry short hashed refs (`user:1a2b3c4d`) instead of addresses |
+| 🔄 | Resilient Graph sync | Microsoft Graph calls time out after 30 s and retry throttling and 5xx errors with backoff |
+| 🚫 | Missing-calendar skip | A partner whose calendar cannot be read is skipped instead of failing the booking |
+| ☁️ | Serverless | Two ARM64 Lambdas and a shared layer, nothing to keep running |
 
 ---
 
@@ -42,11 +85,10 @@
        alt="Slack sends /newintro to the UI Lambda, which checks the allowlist and invokes the worker Lambda asynchronously; the worker reads its config from Secrets Manager, syncs Azure AD, picks partners from DynamoDB, books Google Calendar events and posts progress back to Slack.">
 </picture>
 
-Two Lambdas: a thin **UI Lambda** that answers Slack within its 3-second window, and a **Worker Lambda** that does the slow booking work asynchronously.
-
-The worker syncs the Azure AD group into DynamoDB once per request, then, for each email: picks the least-used available partner, searches Google Calendar for a free 15-minute slot, creates the event with both attendees, bumps the partner's weight, and posts the confirmation to Slack.
-
-The diagram is drawn by `tools/gen_diagram.py`; run `python3 tools/gen_diagram.py` after changing it (CI runs `--check`).
+Two Lambdas: a thin **UI Lambda** that answers Slack inside its 3-second window,
+and a **Worker Lambda** that does the slow booking work asynchronously. The
+step-by-step is in [How it works](docs/how-it-works.md). `tools/gen_diagram.py`
+draws the diagram; CI runs it with `--check`.
 
 ---
 
@@ -55,114 +97,35 @@ The diagram is drawn by `tools/gen_diagram.py`; run `python3 tools/gen_diagram.p
 | Requirement | Notes |
 |-------------|-------|
 | Python | 3.13 (matches the Lambda runtime) |
-| AWS account | Lambda, Secrets Manager, DynamoDB, CloudWatch |
+| AWS account | Lambda, Secrets Manager, DynamoDB, CloudWatch Logs |
 | Slack app | Bot token, signing secret, and a `/newintro` slash command |
-| Azure AD app | Client credentials with group read access |
-| Google service account | Domain-wide delegation for Calendar FreeBusy + event creation |
-
-### Slack app requirements
-
-- Slash command `/newintro` pointing at the UI Lambda's URL
-- Bot token scopes: `commands`, `chat:write`
-
----
-
-## 🚀 Quick Start
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/CaputoDavide93/New-Starters-Meetup.git
-cd New-Starters-Meetup
-```
-
-### 2. Build the deployment packages
-
-```bash
-./scripts/build.sh
-```
-
-The dependency layer is **not** committed — `scripts/build.sh` builds it every time:
-
-1. Installs `requirements.txt` (`--require-hashes`, wheels for python3.13 / arm64) into `build/layer/python/`
-2. Copies `src/common/*.py` into the layer as the `intro_common` package
-3. Copies the two entry files into the `deploy/ui-lambda/` and `deploy/worker-lambda/` staging folders
-4. Zips everything into `dist/`: `ui-lambda.zip`, `worker-lambda.zip`, and `layer-python313-arm64.zip`
-
-### 3. Deploy with the AWS CLI
-
-```bash
-# Publish the shared layer
-aws lambda publish-layer-version \
-  --layer-name newstarters-deps \
-  --compatible-runtimes python3.13 \
-  --compatible-architectures arm64 \
-  --zip-file fileb://dist/layer-python313-arm64.zip
-
-# Update the two functions (create them first with your preferred tooling)
-aws lambda update-function-code --function-name intro-ui-lambda \
-  --zip-file fileb://dist/ui-lambda.zip
-aws lambda update-function-code --function-name intro-worker-lambda \
-  --zip-file fileb://dist/worker-lambda.zip
-```
-
-Handlers: `ui_entry.lambda_handler` (UI) and `worker_entry.lambda_handler` (worker). Both functions need the layer attached and the environment variables below; the worker needs a generous timeout (it stops itself safely near the 15-minute Lambda cap).
+| Azure AD app | Client credentials with permission to read group members |
+| Google service account | Domain-wide delegation for Calendar FreeBusy and event creation |
 
 ---
 
 ## ⚙️ Configuration
 
-### Environment variables
+Two environment variables select the config; everything else lives in one JSON
+secret.
 
 | Variable | Lambda | Required | Description |
 |----------|--------|:--------:|-------------|
-| `CONFIG_SECRET` | both | ✅ | ARN of the AWS Secrets Manager secret holding the JSON config |
+| `CONFIG_SECRET` | both | ✅ | ARN of the Secrets Manager secret holding the JSON config |
 | `WORKER_FUNCTION_NAME` | UI | ✅ | Name of the worker Lambda to invoke asynchronously |
-| `LOG_LEVEL` | worker | ❌ | Python log level (default `INFO`; logs carry hashed user refs, not emails) |
+| `LOG_LEVEL` | worker | ❌ | Python log level (default `INFO`) |
 
-See [.env.example](.env.example) for the full template.
-
-### The Secrets Manager secret
-
-All application config lives in **one JSON secret** (`CONFIG_SECRET`), loaded once at cold start by `src/common/config.py`:
-
-| Key | Required | Description |
-|-----|:--------:|-------------|
-| `slack_bot_token` | ✅ | Slack bot OAuth token (`xoxb-…`) |
-| `slack_signing_secret` | ✅ | Slack app signing secret |
-| `slack_trigger_channel_id` | ✅ | Fallback channel ID for status messages (the older `slack_trigger_channel` key is still read) |
-| `allowed_email_domains` | ⚠️ | Comma-separated domains that may be booked, e.g. `example.com,example.org`. **Set this** — the built-in default is the placeholder `example.com` |
-| `azure_tenant_id` | ✅ | Azure AD tenant (coffee intros) |
-| `azure_client_id` | ✅ | Azure AD app client ID |
-| `azure_client_secret` | ✅ | Azure AD app client secret |
-| `azure_group_id` | ✅ | Azure AD group holding coffee-intro partners |
-| `buddy_azure_tenant_id` | ❌ | Buddy-intro override (falls back to the coffee credentials) |
-| `buddy_azure_client_id` | ❌ | Buddy-intro override |
-| `buddy_azure_client_secret` | ❌ | Buddy-intro override |
-| `buddy_azure_group_id` | ✅ | Azure AD group holding buddy-intro partners |
-| `google_service_account_key` | ✅ | Google service-account key, as a JSON **string** |
-| `google_delegated_user` | ✅ | Workspace user the service account impersonates |
-| `google_calendar_id` | ✅ | Calendar the events are created on |
-| `dynamodb_table_name` | ✅ | Partner-weight table (coffee) |
-| `buddy_dynamodb_table_name` | ✅ | Partner-weight table (buddy) |
-| `meeting_title_template` | ❌ | Event title template, e.g. `☕️ Coffee: {person1} & {person2}` |
-| `meeting_description_template` | ❌ | Event description template |
-| `buddy_meeting_title_template` | ❌ | Buddy event title template |
-| `buddy_meeting_description_template` | ❌ | Buddy event description template |
-
-Templates accept `{person1}`/`{person2}` (display names) and `{email1}`/`{email2}` placeholders; unknown placeholders fall back to a safe default title.
+The secret's keys, the DynamoDB table layout and the IAM permissions are in
+[docs/setup.md](docs/setup.md#3-store-the-configuration). [.env.example](.env.example)
+is the template.
 
 ---
 
 ## 📖 Usage
 
-1. In Slack, run **`/newintro`** in any channel the bot can post to.
-2. Fill in the modal:
-   - **Which type of intro?** — ☕️ Coffee or 🤝 Buddy
-   - **Participant emails** — comma-separated list of new starters (only addresses on `allowed_email_domains`; anything else is flagged in the modal and nothing is booked)
-   - **Start date** — first day to search for slots
-   - **Meetings per person** — how many intros to book for each email
-3. Submit. The UI Lambda acknowledges instantly and hands off to the worker, which posts progress to the channel as it books:
+1. In Slack, run **`/newintro`** in a channel the bot can post to.
+2. Fill in the modal: intro type (☕️ Coffee or 🤝 Buddy), participant emails, start date, meetings per person.
+3. Submit. The UI Lambda acknowledges at once and the worker posts progress as it books:
 
 ```text
 ☕ Booking Coffee…
@@ -170,14 +133,26 @@ Templates accept `{person1}`/`{person2}` (display names) and `{email1}`/`{email2
 ✅ Booking complete! 2 succeeded, 0 failed.
 ```
 
-### Maintenance: DynamoDB cleanup
+Emails outside `allowed_email_domains` are flagged in the modal and nothing is
+booked. `scripts/cleanup_db.py` merges duplicate DynamoDB records caused by email
+case mismatches; see [Troubleshooting](docs/troubleshooting.md).
 
-`scripts/cleanup_db.py` merges duplicate user records caused by email case mismatches:
+---
 
-```bash
-python scripts/cleanup_db.py --table intro-weights --dry-run   # preview
-python scripts/cleanup_db.py --table intro-weights --apply     # apply
-```
+## ✅ Tested and unverified
+
+| Area | Status | What was run |
+|------|--------|--------------|
+| Allowlist, log redaction, UI handler, booking flow | Tested | The pytest suite (`make test`), with Secrets Manager, Slack, Google and Graph stubbed, Python 3.13 on macOS and in CI on Ubuntu |
+| Lint and diagrams | Tested | `ruff` and `tools/gen_diagram.py --check` in CI |
+| Build | Tested | `./scripts/build.sh` on macOS produced all three ZIPs from the hash-pinned lock |
+| Slack modal rendering, `/newintro` against a live workspace | Unverified | No check opens Slack |
+| Azure AD group sync against a real tenant | Unverified | Graph is stubbed |
+| Google Calendar FreeBusy and event creation | Unverified | Google is stubbed |
+| Deployment on AWS Lambda, DynamoDB reads and writes | Unverified | No check calls AWS |
+
+There are no screenshots: the only interface is a Slack modal, and no check
+renders it. A Block Kit builder preview would not be a picture of this product.
 
 ---
 
@@ -196,89 +171,61 @@ New-Starters-Meetup/
 │   │   └── ui_entry.py       # 🎛️ Slack slash command + modal handler
 │   └── worker_lambda/
 │       └── worker_entry.py   # ⚙️ booking engine
-├── tests/                    # 🧪 pytest suite (allowlist, log redaction, booking flow, diagrams)
+├── tests/                    # 🧪 pytest suite
 ├── tools/
-│   └── gen_diagram.py        # 🎨 draws the architecture diagram (stdlib only)
-├── docs/assets/              # 🖼️ drawn diagram, light + dark SVG
-├── requirements.in           # 📦 top-level layer deps
-├── requirements.txt          # 🔒 hash-pinned lock used by build.sh
+│   ├── gen_diagram.py        # 🎨 draws the architecture diagram (stdlib only)
+│   └── brand/                # 🖌️ icon and social-preview generator
+├── docs/                     # 📚 setup, how it works, troubleshooting, FAQ
+│   └── assets/               # 🖼️ diagram, icon, social preview
 ├── scripts/
 │   ├── build.sh              # 🔧 builds the three deployment ZIPs into dist/
 │   └── cleanup_db.py         # 🧹 DynamoDB duplicate-user cleanup
-├── .github/workflows/ci.yml  # 🤖 Ruff lint + pytest on push and PR
+├── Makefile                  # 🧰 venv, test, lint, check, build
+├── llms.txt                  # 🤖 one-page summary for AI search
+├── requirements.in           # 📦 top-level layer deps
+├── requirements.txt          # 🔒 hash-pinned lock used by build.sh
+├── .github/workflows/ci.yml  # 🤖 Ruff, pytest and generator checks
 ├── .env.example              # ⚙️ Lambda environment template
-├── README.md  CONTRIBUTING.md  SECURITY.md  # 📄 community files
-└── LICENSE                   # 📄 MIT License
+└── README.md  CONTRIBUTING.md  SECURITY.md  AGENTS.md  CLAUDE.md  LICENSE
 ```
 
-`build/`, `deploy/` and `dist/` are build staging/output folders created by `scripts/build.sh` — they are gitignored, never edited by hand.
+`build/`, `deploy/` and `dist/` are created by `scripts/build.sh`, gitignored,
+never edited by hand.
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-python3.13 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt   # hash-pinned layer deps
-pip install boto3 pytest          # test-only extras (boto3 ships with the Lambda runtime)
-python -m pytest tests
+make venv     # Python 3.13 environment with the locked dependencies
+make check    # ruff, pytest, diagram and icon checks
 ```
 
-Dependencies are declared in `requirements.in` and locked (with hashes) in `requirements.txt`. To change a dependency, edit `requirements.in` and re-lock with the `uv pip compile` command at the top of that file.
-
-The suite runs fully offline (Secrets Manager, Slack, Google and Graph are stubbed) and covers the email allowlist, log redaction, the UI handler and the booking flow. `tests/test_diagrams.py` also checks that the committed SVGs match `tools/gen_diagram.py`.
-
-CI ([ci.yml](.github/workflows/ci.yml)) runs Ruff and this suite on every push and pull request:
-
-```bash
-ruff check --select E4,E7,E9,F src scripts tests
-```
+`make check` is what CI runs. Dependencies are declared in `requirements.in` and
+locked with hashes in `requirements.txt`; the re-lock command is at the top of
+`requirements.in`.
 
 ---
 
 ## 🛠️ Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Slack API `not_authed` | Verify your bot token with `curl -X POST https://slack.com/api/auth.test -H "Authorization: Bearer $SLACK_BOT_TOKEN"` |
-| "Only @… addresses are allowed" in the modal | The list contains an address outside `allowed_email_domains` — fix the address or add the domain to the secret |
-| "No partner available" | Check the Azure AD group sync and the DynamoDB table contents |
-| FreeBusy `notFound` errors | The user's Google Calendar is not accessible. Ensure the service account has domain-wide delegation and the user has a Google Workspace account. Users whose calendars error are skipped as partners and logged as warnings |
-| "Signature mismatch" | Verify `slack_signing_secret` in the config secret |
-| Timeout warnings in the channel | The worker warns near the 15-minute Lambda cap and stops early — reduce the email list or meetings per person |
-| "Permission denied" | Check the Lambdas' IAM roles (Secrets Manager read, DynamoDB read/write, `lambda:InvokeFunction` for the UI role) |
-
-### CloudWatch logs
-
-```bash
-# Replace with your function names
-aws logs tail /aws/lambda/intro-ui-lambda --follow
-aws logs tail /aws/lambda/intro-worker-lambda --follow
-```
-
----
-
-## 🔒 Security
-
-Please see [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+Fixes by symptom are in [docs/troubleshooting.md](docs/troubleshooting.md), short
+answers in [docs/faq.md](docs/faq.md).
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Setups I could not test (other Azure tenants, calendars, regions) are the most
+useful reports. Open an issue with the diagnostics listed in
+[CONTRIBUTING.md](CONTRIBUTING.md#-reporting-an-untested-setup), or send a pull
+request. Report vulnerabilities privately; see [SECURITY.md](SECURITY.md).
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).
 
 ---
 

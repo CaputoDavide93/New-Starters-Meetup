@@ -112,7 +112,7 @@ def handle_submit(ack, body, client, logger):
     vals = body["view"]["state"]["values"]
     raw_emails = vals["emails"]["emails_input"]["value"]
 
-    # Invites go out from the company calendar: only allow company addresses
+    # Invites go out from your organisation's calendar: only allow addresses on the allowed domains
     valid_emails, rejected = parse_email_list(raw_emails, allowed_email_domains)
     if rejected or not valid_emails:
         domains = " or ".join(f"@{d}" for d in sorted(allowed_email_domains))

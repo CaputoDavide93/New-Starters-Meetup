@@ -71,7 +71,7 @@ def test_worker_refuses_external_emails():
     book.assert_not_called()
 
 
-def test_worker_accepts_company_emails():
+def test_worker_accepts_allowed_domain_emails():
     with mock.patch.object(worker_entry, "book_all_intros") as book:
         result = worker_entry.lambda_handler(
             {"emails": "A@example.org, b@example.com", "start": "2026-10-01",
