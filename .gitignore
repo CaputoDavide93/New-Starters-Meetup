@@ -84,3 +84,16 @@ htmlcov/
 
 # mypy
 .mypy_cache/
+
+# Secrets and credentials: never commit
+secrets.yaml
+secrets.yml
+*.p8
+*.jks
+*.keystore
+*.mobileprovision
+id_rsa
+id_ed25519
+credentials.json
+google-services.json
+GoogleService-Info.plist
