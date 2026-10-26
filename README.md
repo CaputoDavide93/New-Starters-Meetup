@@ -18,22 +18,21 @@
 
 ## ✨ Features
 
-New Starters MeetUp is a free, open-source (MIT) Slack bot for onboarding
-coordinators. You type `/newintro`, paste the email addresses of your new
-starters, and the bot books 15-minute coffee-chat or buddy meetings in Google
-Calendar. It chooses the partners from an Azure AD group, spreads the load
-across them, and reports progress back to the Slack channel.
+Type `/newintro` in Slack, paste the email addresses of your new starters, and
+the bot books a 15-minute coffee chat or buddy intro for each one in Google
+Calendar. It is for the person who coordinates onboarding and is tired of
+doing the diary work.
 
 ### Why it exists
 
-Booking intros for a new cohort by hand means opening three calendars per
-meeting, finding a gap, and remembering who already did a coffee chat last
-week. The same few friendly people end up doing most of them.
+Booking intros for a cohort by hand means opening three calendars per meeting,
+finding a gap, and trying to remember who did a coffee chat last week. The same
+few friendly people end up doing most of them.
 
-This bot does the searching and the bookkeeping. It checks the team calendar,
-the new starter and the partner in one Google FreeBusy call, books the first
-free slot, and counts every booking so the next partner is someone who has done
-fewer.
+The bot does the searching and the counting. One Google FreeBusy call checks the
+team calendar, the new starter and the partner together, the first free slot
+gets booked, and every booking is counted so the next partner is someone who
+has done fewer.
 
 | | New Starters MeetUp | Booking by hand | Scheduling-link tools |
 |---|---|---|---|
@@ -44,22 +43,22 @@ fewer.
 | Where it runs | Two AWS Lambdas you deploy | Nowhere | A hosted service |
 | Setup effort | Slack app, Azure AD app, Google service account, AWS | None | Account sign-up |
 
-The trade-off: you deploy and own the infrastructure (AWS, Slack, Azure AD and
-Google Workspace), and the booking window, time zone and lunch break are set in
-code, not in a settings page. See [How it works](docs/how-it-works.md).
+The trade-off: you deploy and run the AWS, Slack, Azure AD and Google Workspace
+side yourself, and the booking window, time zone and lunch break live in code,
+not in a settings page. [How it works](docs/how-it-works.md) has the details.
 
 ### Install in 3 steps
 
-You need Python 3.13, an AWS account, a Slack app, an Azure AD app registration
-and a Google Workspace service account with domain-wide delegation. The full
-list is in [Prerequisites](#-prerequisites).
+You need an AWS account, a Slack app, an Azure AD app registration and a Google
+Workspace service account with domain-wide delegation. See
+[Prerequisites](#-prerequisites).
 
 1. **Build the packages.** `./scripts/build.sh` writes the two function ZIPs and the dependency layer into `dist/`.
 2. **Deploy and configure.** Publish the layer, create the two Lambdas and the two DynamoDB tables, then store your settings in one Secrets Manager secret. [Setup guide](docs/setup.md).
 3. **Point Slack at it.** Set the `/newintro` command's request URL to the UI Lambda's URL, then run `/newintro` in a channel.
 
-Steps 2 and 3 need real AWS, Slack, Azure AD and Google accounts and are
-unverified in this repository's checks. See [Tested and unverified](#-tested-and-unverified).
+Steps 2 and 3 need real AWS, Slack, Azure AD and Google accounts, so no check
+here covers them. See [Tested and unverified](#-tested-and-unverified).
 
 | | Feature | What it does for you |
 |---|---|---|
@@ -85,9 +84,9 @@ unverified in this repository's checks. See [Tested and unverified](#-tested-and
        alt="Slack sends /newintro to the UI Lambda, which checks the allowlist and invokes the worker Lambda asynchronously; the worker reads its config from Secrets Manager, syncs Azure AD, picks partners from DynamoDB, books Google Calendar events and posts progress back to Slack.">
 </picture>
 
-Two Lambdas: a thin **UI Lambda** that answers Slack inside its 3-second window,
-and a **Worker Lambda** that does the slow booking work asynchronously. The
-step-by-step is in [How it works](docs/how-it-works.md). `tools/gen_diagram.py`
+A thin **UI Lambda** answers Slack inside its 3-second window. A **Worker
+Lambda** does the slow booking work asynchronously. [How it works](docs/how-it-works.md)
+follows one request through both. `tools/gen_diagram.py`
 draws the diagram; CI runs it with `--check`.
 
 ---
@@ -152,7 +151,7 @@ case mismatches; see [Troubleshooting](docs/troubleshooting.md).
 | Deployment on AWS Lambda, DynamoDB reads and writes | Unverified | No check calls AWS |
 
 There are no screenshots: the only interface is a Slack modal, and no check
-renders it. A Block Kit builder preview would not be a picture of this product.
+renders it. A Block Kit preview would not show this product.
 
 ---
 
@@ -216,8 +215,8 @@ answers in [docs/faq.md](docs/faq.md).
 
 ## 🤝 Contributing
 
-Setups I could not test (other Azure tenants, calendars, regions) are the most
-useful reports. Open an issue with the diagnostics listed in
+The setups I could not test (other Azure tenants, calendars, regions) make the
+most useful reports. Open an issue with the diagnostics listed in
 [CONTRIBUTING.md](CONTRIBUTING.md#-reporting-an-untested-setup), or send a pull
 request. Report vulnerabilities privately; see [SECURITY.md](SECURITY.md).
 
