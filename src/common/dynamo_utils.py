@@ -51,46 +51,6 @@ def get_display_name(email: str, table_name: str) -> str:
         return email.split('@')[0].replace('.', ' ').replace('_', ' ').title()
 
 
-def ensure_user_in_db(
-    email: str,
-    table_name: str,
-    initial_weight: float = 0.0,
-) -> None:
-    """
-    Ensure user exists in DynamoDB table with initial weight.
-    
-    Args:
-        email: User email
-        table_name: DynamoDB table name
-        initial_weight: Initial weight value
-    """
-    try:
-        # Normalize email to lowercase for consistent DB keys
-        email = email.lower()
-        
-        dynamodb = boto3.resource("dynamodb")
-        table = dynamodb.Table(table_name)
-        
-        # Check if user exists
-        response = table.get_item(Key={"email": email})
-        
-        if "Item" not in response:
-            # User doesn't exist, create with initial weight
-            table.put_item(
-                Item={
-                    "email": email,
-                    "weight": initial_weight,
-                }
-            )
-            LOG.debug(f"Created user in DB: {email_ref(email)}")
-        else:
-            LOG.debug(f"User already exists in DB: {email_ref(email)}")
-            
-    except Exception as e:
-        LOG.error(f"Failed to ensure user in DB: {e}", exc_info=True)
-        raise
-
-
 def pick_one_intro_partner(
     table_name: str,
     exclude_set: set[str],

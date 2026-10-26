@@ -57,8 +57,7 @@ Templates take `{person1}` and `{person2}` (display names) and `{email1}` and
 ## 4. Create the tables and the Lambdas
 
 Create two DynamoDB tables (the names are the values of `dynamodb_table_name` and
-`buddy_dynamodb_table_name`) with a string partition key named `email`. The
-examples in `.env.example` use `IntroUsers` and `BuddyUsers`.
+`buddy_dynamodb_table_name`) with a string partition key named `email`.
 
 Publish the layer and create the functions with your usual tooling, then upload the
 code:
