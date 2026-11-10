@@ -9,5 +9,5 @@ google-auth==2.62.0
 google-auth-httplib2==0.4.4
 azure-identity==1.26.0
 msal==1.39.0
-pytz==2025.2
+pytz==2026.5
 requests==2.34.2
