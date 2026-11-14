@@ -3,11 +3,11 @@
 #   uv pip compile requirements.in -o requirements.txt --python-version 3.13 \
 #     --python-platform aarch64-manylinux2014 --generate-hashes
 slack-bolt==1.30.0
-slack-sdk==3.45.0
-google-api-python-client==2.201.0
-google-auth==2.62.0
+slack-sdk==3.46.0
+google-api-python-client==2.202.0
+google-auth==2.62.2
 google-auth-httplib2==0.4.4
-azure-identity==1.26.0
+azure-identity==1.27.0
 msal==1.39.0
-pytz==2026.5
+pytz==2026.6
 requests==2.34.2
