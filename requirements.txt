@@ -348,9 +348,9 @@ google-api-python-client==2.202.0 \
     --hash=sha256:aaa90064c9bb642ff1d065b22ca8958a2cb6e345909cefe70d0e5452fc50e08b \
     --hash=sha256:ae126c8e91f43c331e23dbd83bc4a8075699dd48089cebc7295f6ab2f5850fc5
     # via -r requirements.in
-google-auth==2.62.2 \
-    --hash=sha256:046c61a72d3a847d6df6417a7f0d5cf054e3b82bbcb54fb1e69d47880964049c \
-    --hash=sha256:e9bcdb0679b6a4369ac327c5c59f06d92f7b4cd2624e7100294c14632f55a36b
+google-auth==2.63.1 \
+    --hash=sha256:3c977ca57114a302c2589f3a24be7ca1b6862d30da7619f4230a78809f58a0e9 \
+    --hash=sha256:f69f387dba9abe536fec87483a749485f2ef0c81bfa79f609d9873e57054a1a5
     # via
     #   -r requirements.in
     #   google-api-core
@@ -446,9 +446,9 @@ slack-bolt==1.30.0 \
     --hash=sha256:81f5bc46e79516d23d5e2a31dded6304dd1b8b6b72c0083f2f31d5d801e262c4 \
     --hash=sha256:af38258d41f801ad9c74503090e0f39accd66c49f667f7e55c97fcdb0e51b886
     # via -r requirements.in
-slack-sdk==3.47.0 \
-    --hash=sha256:824e91a94a5b72a65531e8db0dd63dc4dc6bbad1a219b19582b48d5661c1c707 \
-    --hash=sha256:8cfab3224d149962ef4313c1430d9ff65b8c3baf09f25988a920858ffa90aaa9
+slack-sdk==3.48.0 \
+    --hash=sha256:1213726e5b8015eeded608fcb3665c4e9b48af7f7f383ecc1b90af886d6aaa03 \
+    --hash=sha256:e54389b4b9b221c9d57f1d98bc1e28f4918e4e0bc435cc5d430216cb1ab6ad7c
     # via
     #   -r requirements.in
     #   slack-bolt
